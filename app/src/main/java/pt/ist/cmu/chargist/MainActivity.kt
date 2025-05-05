@@ -11,6 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
+import pt.ist.cmu.chargist.ui.navigation.ChargISTNavigation
 import pt.ist.cmu.chargist.ui.theme.ChargISTTheme
 
 class MainActivity : ComponentActivity() {
@@ -19,6 +21,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ChargISTTheme {
+//                ChargISTApp()
+                // Eliminate the scaffold to run the app
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
                         name = "Android",
@@ -31,17 +35,24 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+fun ChargISTApp() {
+    val navController = rememberNavController()
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize()
+    ) { innerPadding ->
+        ChargISTNavigation(
+            navController = navController,
+            modifier = Modifier.padding(innerPadding)
+        )
+    }
+}
+
+// For testing purposes only
+@Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
     Text(
         text = "Hello $name!",
         modifier = modifier
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    ChargISTTheme {
-        Greeting("Android")
-    }
 }
