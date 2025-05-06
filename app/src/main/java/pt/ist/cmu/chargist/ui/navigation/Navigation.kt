@@ -27,6 +27,8 @@ sealed class Screen(val route: String) {
     object UserProfile : Screen("user_profile")
 }
 
+
+
 @Composable
 fun ChargISTNavigation(navController: NavHostController, modifier: Modifier = Modifier) {
     NavHost(

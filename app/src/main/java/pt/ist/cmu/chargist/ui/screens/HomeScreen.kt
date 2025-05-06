@@ -39,6 +39,11 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.Charger
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +54,18 @@ fun HomeScreen(
     onProfileClick: () -> Unit,
     viewModel: MapViewModel = koinViewModel()
 ) {
+    /* ── 1. Ask for ACCESS_FINE_LOCATION once ─────────────────────── */
+    val permissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) viewModel.onLocationPermissionGranted()
+        }
+
+    LaunchedEffect(Unit) {
+        permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
     val mapState by viewModel.mapState.collectAsState()
+
 
     // Initial position - IST Campus (Alameda)
     var defaultLocation by remember {
@@ -125,7 +141,9 @@ fun HomeScreen(
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
-                properties = mapProperties,
+                properties = MapProperties(
+                    isMyLocationEnabled = mapState.hasLocationPermission   // ← key line
+                ),
                 uiSettings = mapUiSettings,
                 onMapLoaded = {
                     // When map is loaded, get chargers in current visible area

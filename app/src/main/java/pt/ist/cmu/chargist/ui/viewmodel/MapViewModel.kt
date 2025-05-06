@@ -2,19 +2,23 @@ package pt.ist.cmu.chargist.ui.viewmodel
 
 import android.location.Location
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import pt.ist.cmu.chargist.data.model.Charger
 import pt.ist.cmu.chargist.data.repository.ChargerRepository
 import kotlin.coroutines.resume
@@ -25,9 +29,11 @@ data class MapState(
     val chargers: List<Charger> = emptyList(),
     val favoriteChargers: List<Charger> = emptyList(),
     val currentLocation: LatLng? = null,
+    val hasLocationPermission: Boolean = false,        // ← NEW
     val isLoading: Boolean = false,
     val error: String? = null
 )
+
 
 class MapViewModel(
     private val chargerRepository: ChargerRepository,
@@ -41,9 +47,9 @@ class MapViewModel(
     init {
         loadChargers()
         loadFavoriteChargers()
-        viewModelScope.launch {
-            getCurrentLocation()
-        }
+        //viewModelScope.launch {
+        //    getCurrentLocation()
+        //}
     }
 
     private fun loadChargers() {
@@ -63,6 +69,14 @@ class MapViewModel(
             }
         }
     }
+
+    fun onLocationPermissionGranted() {
+        if (!_mapState.value.hasLocationPermission) {
+            _mapState.value = _mapState.value.copy(hasLocationPermission = true)
+            viewModelScope.launch { getCurrentLocation() }
+        }
+    }
+
 
     private fun loadFavoriteChargers() {
         viewModelScope.launch {
@@ -98,18 +112,17 @@ class MapViewModel(
         }
     }
 
-    private suspend fun getCurrentLocation() {
-        try {
-            val location = getLastLocationSuspend()
-            _mapState.value = _mapState.value.copy(
-                currentLocation = LatLng(location.latitude, location.longitude)
-            )
-        } catch (e: Exception) {
-            _mapState.value = _mapState.value.copy(
-                error = "Error getting current location: ${e.message}"
-            )
-        }
+    @SuppressLint("MissingPermission")
+    private suspend fun getCurrentLocation(): Location = suspendCancellableCoroutine { cont ->
+        fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            CancellationTokenSource().token
+        ).addOnSuccessListener { location ->
+            if (location != null) cont.resume(location) else
+                cont.resumeWithException(Exception("Location is null"))
+        }.addOnFailureListener { e -> cont.resumeWithException(e) }
     }
+
 
     private suspend fun getLastLocationSuspend(): Location = suspendCoroutine { continuation ->
         try {

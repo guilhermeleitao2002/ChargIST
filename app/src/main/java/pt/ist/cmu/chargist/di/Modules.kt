@@ -1,6 +1,7 @@
 package pt.ist.cmu.chargist.di
 
 import android.content.Context
+import android.net.ConnectivityManager            // ⬅ add
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -23,13 +24,32 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
+/* ─────────────────────────  APPLICATION‑WIDE BEANS  ───────────────────────── */
+
 val appModule = module {
-    single { androidContext().getSharedPreferences("chargist_prefs", Context.MODE_PRIVATE) }
-    single<FusedLocationProviderClient> { LocationServices.getFusedLocationProviderClient(androidContext()) }
+
+    // SharedPreferences
+    single {
+        androidContext().getSharedPreferences("chargist_prefs", Context.MODE_PRIVATE)
+    }
+
+    // Fused‑location provider
+    single<FusedLocationProviderClient> {
+        LocationServices.getFusedLocationProviderClient(androidContext())
+    }
+
+    /* ✨ NEW — system ConnectivityManager (needed by ChargerRepositoryImpl) */
+    single {
+        val ctx: Context = androidContext()
+        ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    }
+
 }
 
+/* ────────────────────────────────  ROOM  ─────────────────────────────────── */
+
 val dataModule = module {
-    // Database
+
     single {
         Room.databaseBuilder(
             androidContext(),
@@ -44,17 +64,20 @@ val dataModule = module {
 
     // Repositories
     single<ChargerRepository> { ChargerRepositoryImpl(get(), get(), get()) }
-    single<UserRepository> { UserRepositoryImpl(get(), get()) }
+    single<UserRepository>    { UserRepositoryImpl(get(), get()) }
 }
 
+/* ─────────────────────────────  NETWORK  ─────────────────────────────────── */
+
 val networkModule = module {
+
     single {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
+        val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
         OkHttpClient.Builder()
-            .addInterceptor(loggingInterceptor)
+            .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
@@ -62,7 +85,7 @@ val networkModule = module {
 
     single {
         Retrofit.Builder()
-            .baseUrl("https://your-backend-url.com/api/") // Replace with your actual backend URL
+            .baseUrl("https://your-backend-url.com/api/")   // TODO replace
             .client(get())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -72,8 +95,19 @@ val networkModule = module {
     single { ChargISTApi(get()) }
 }
 
+/* ─────────────────────────────  VIEWMODELS  ──────────────────────────────── */
+
 val viewModelModule = module {
+
     viewModel { UserViewModel(get()) }
+
+    /**
+     * MapViewModel needs:
+     *   1) ChargerRepository  → get()
+     *   2) FusedLocationProviderClient → get()
+     *   3) Context → get()  (because we exposed it above)
+     */
     viewModel { MapViewModel(get(), get(), get()) }
+
     viewModel { ChargerViewModel(get(), get()) }
 }
