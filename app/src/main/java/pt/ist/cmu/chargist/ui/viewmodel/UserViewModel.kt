@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pt.ist.cmu.chargist.data.model.User
+import pt.ist.cmu.chargist.data.repository.AuthRepository
 import pt.ist.cmu.chargist.data.repository.UserRepository
 import pt.ist.cmu.chargist.util.NetworkResult
 
@@ -16,55 +17,37 @@ data class UserState(
     val error: String? = null
 )
 
-class UserViewModel(private val userRepository: UserRepository) : ViewModel() {
+class UserViewModel(private val repo: AuthRepository) : ViewModel() {
 
-    private val _userState = MutableStateFlow(UserState())
-    val userState: StateFlow<UserState> = _userState.asStateFlow()
+    private val _state = MutableStateFlow(UserState())
+    val userState: StateFlow<UserState> = _state
 
-    init {
-        loadCurrentUser()
-    }
-
-    fun loadCurrentUser() {
+    init {                       // listen to auth changes forever
         viewModelScope.launch {
-            _userState.value = UserState(isLoading = true)
-
-            when (val result = userRepository.getCurrentUser()) {
-                is NetworkResult.Success -> {
-                    _userState.value = UserState(user = result.data)
-                }
-                is NetworkResult.Error -> {
-                    _userState.value = UserState(error = result.message)
-                }
-                NetworkResult.Loading -> {
-                    // Already set loading state above
-                }
+            repo.currentUser().collect { user ->
+                _state.value = UserState(user = user)
             }
         }
     }
 
-    fun createUser(username: String) {
-        viewModelScope.launch {
-            _userState.value = UserState(isLoading = true)
-
-            when (val result = userRepository.createUser(username)) {
-                is NetworkResult.Success -> {
-                    _userState.value = UserState(user = result.data)
-                }
-                is NetworkResult.Error -> {
-                    _userState.value = UserState(error = result.message)
-                }
-                NetworkResult.Loading -> {
-                    // Already set loading state above
-                }
-            }
-        }
+    fun signUp(username: String, email: String, pass: String) = request {
+        repo.signUp(username, email, pass)
     }
 
-    fun logout() {
+    fun login(email: String, pass: String) = request {
+        repo.login(email, pass)
+    }
+
+    fun logout() = viewModelScope.launch { repo.logout() }
+
+    private fun request(call: suspend () -> NetworkResult<User>) {
         viewModelScope.launch {
-            userRepository.logout()
-            _userState.value = UserState()
+            _state.value = UserState(isLoading = true)
+            _state.value = when (val res = call()) {
+                is NetworkResult.Success -> UserState(user = res.data)
+                is NetworkResult.Error   -> UserState(error = res.message)
+                else -> UserState()
+            }
         }
     }
 }

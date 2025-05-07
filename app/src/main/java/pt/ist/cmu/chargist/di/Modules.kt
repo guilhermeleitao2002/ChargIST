@@ -5,6 +5,8 @@ import android.net.ConnectivityManager            // ⬅ add
 import androidx.room.Room
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.android.ext.koin.androidContext
@@ -13,8 +15,10 @@ import org.koin.dsl.module
 import pt.ist.cmu.chargist.data.ChargISTDatabase
 import pt.ist.cmu.chargist.data.api.ChargISTApi
 import pt.ist.cmu.chargist.data.api.ChargISTApiService
+import pt.ist.cmu.chargist.data.repository.AuthRepository
 import pt.ist.cmu.chargist.data.repository.ChargerRepository
 import pt.ist.cmu.chargist.data.repository.ChargerRepositoryImpl
+import pt.ist.cmu.chargist.data.repository.FirebaseAuthRepository
 import pt.ist.cmu.chargist.data.repository.UserRepository
 import pt.ist.cmu.chargist.data.repository.UserRepositoryImpl
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
@@ -110,4 +114,12 @@ val viewModelModule = module {
     viewModel { MapViewModel(get(), get(), get()) }
 
     viewModel { ChargerViewModel(get(), get()) }
+}
+
+
+val firebaseModule = module {
+    single { FirebaseAuth.getInstance() }
+    single { FirebaseFirestore.getInstance() }
+
+    single<AuthRepository> { FirebaseAuthRepository(get(), get()) }
 }

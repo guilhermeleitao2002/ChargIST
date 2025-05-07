@@ -22,13 +22,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             ChargISTTheme {
                 ChargISTApp()
-                // Eliminate the scaffold to run the app
-//                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-//                    Greeting(
-//                        name = "Android",
-//                        modifier = Modifier.padding(innerPadding)
-//                    )
-//                }
             }
         }
     }
