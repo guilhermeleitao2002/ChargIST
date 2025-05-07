@@ -16,6 +16,12 @@ interface ChargerRepository {
 
     suspend fun getChargerById(id: String): NetworkResult<Charger>
 
+    fun getFavoriteChargersForUser(userId: String):Flow<List<Charger>>
+
+    suspend fun addFavorite(userId: String, chargerId: String): NetworkResult<Charger>
+    suspend fun removeFavorite(userId: String, chargerId: String): NetworkResult<Charger>
+
+
     /**
      * Create a new charger.
      *

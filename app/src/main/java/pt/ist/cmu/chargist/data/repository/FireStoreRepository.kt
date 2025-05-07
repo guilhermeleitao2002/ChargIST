@@ -35,6 +35,11 @@ class FirestoreChargerRepository(
             .snapshots()
             .map { it.toObjects(Charger::class.java) }
 
+    override fun getFavoriteChargersForUser(userId: String): Flow<List<Charger>> =
+        chargersCol.whereArrayContains("favoriteUsers", userId)
+            .snapshots()
+            .map { it.toObjects(Charger::class.java) }
+
     override fun getChargersInBounds(bounds: LatLngBounds): Flow<List<Charger>> =
         chargersCol.snapshots().map { qs ->
             qs.toObjects(Charger::class.java).filter {
@@ -73,7 +78,8 @@ class FirestoreChargerRepository(
             imageData   = imageData,
             createdBy   = userId,
             createdAt   = now,
-            updatedAt   = now
+            updatedAt   = now,
+            favoriteUsers = emptyList()
         )
 
         return runCatching {
@@ -85,15 +91,27 @@ class FirestoreChargerRepository(
     override suspend fun updateFavoriteStatus(
         chargerId: String,
         isFavorite: Boolean
-    ): NetworkResult<Charger> = runCatching {
+    ): NetworkResult<Charger> = TODO("Replaced by addFavorite/removeFavorite")
+
+    override suspend fun addFavorite(userId: String, chargerId: String): NetworkResult<Charger> = runCatching {
         chargerDoc(chargerId).update(
             mapOf(
-                "isFavorite" to isFavorite,
-                "updatedAt"  to FieldValue.serverTimestamp()
+                "favoriteUsers" to FieldValue.arrayUnion(userId),
+                "updatedAt" to System.currentTimeMillis()
             )
         ).await()
         getChargerById(chargerId)
-    }.getOrElse { NetworkResult.Error(it.message ?: "Update failed") }
+    }.getOrElse { NetworkResult.Error(it.message ?: "Add favorite failed") }
+
+    override suspend fun removeFavorite(userId: String, chargerId: String): NetworkResult<Charger> = runCatching {
+        chargerDoc(chargerId).update(
+            mapOf(
+                "favoriteUsers" to FieldValue.arrayRemove(userId),
+                "updatedAt" to System.currentTimeMillis()
+            )
+        ).await()
+        getChargerById(chargerId)
+    }.getOrElse { NetworkResult.Error(it.message ?: "Remove favorite failed") }
 
     /* ---------- slots ---------- */
 

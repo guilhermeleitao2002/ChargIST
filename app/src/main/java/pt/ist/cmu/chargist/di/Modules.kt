@@ -30,8 +30,6 @@ import pt.ist.cmu.chargist.data.repository.AuthRepository
 import pt.ist.cmu.chargist.data.repository.ChargerRepository
 import pt.ist.cmu.chargist.data.repository.FirestoreChargerRepository     // ← NEW
 import pt.ist.cmu.chargist.data.repository.FirebaseAuthRepository
-import pt.ist.cmu.chargist.data.repository.UserRepository
-import pt.ist.cmu.chargist.data.repository.UserRepositoryImpl
 
 /* Project – view‑models */
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
@@ -67,7 +65,7 @@ val dataModule = module {
     single { get<ChargISTDatabase>().userDao() }
 
     // User repo still backed by Room
-    single<UserRepository> { UserRepositoryImpl(get(), get()) }
+    //single<UserRepository> { UserRepositoryImpl(get(), get()) }
 }
 
 /* ───────────────────────────── NETWORK (Retrofit) ─────────────────────────── */

@@ -43,4 +43,34 @@ class Converters {
         val listType = object : TypeToken<List<PaymentSystem>>() {}.type
         return gson.fromJson(value, listType)
     }
+
+    @TypeConverter
+    fun fromStringList(value: List<String>?): String {
+        return gson.toJson(value)
+    }
+
+    @TypeConverter
+    fun toStringList(value: String?): List<String>? {
+        return gson.fromJson(value, object : TypeToken<List<String>>() {}.type)
+    }
+
+    @TypeConverter
+    fun fromLong(value: Long?): String? {
+        return value?.toString()
+    }
+
+    @TypeConverter
+    fun toLong(value: String?): Long? {
+        return value?.toLongOrNull() ?: null
+    }
+
+    @TypeConverter
+    fun fromTimestamp(value: com.google.firebase.Timestamp?): Long? {
+        return value?.toDate()?.time
+    }
+
+    @TypeConverter
+    fun toTimestamp(value: Long?): com.google.firebase.Timestamp? {
+        return value?.let { com.google.firebase.Timestamp(it / 1000, ((it % 1000) * 1000000).toInt()) }
+    }
 }
