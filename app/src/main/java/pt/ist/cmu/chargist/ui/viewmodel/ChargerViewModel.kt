@@ -4,18 +4,17 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.maps.model.LatLng
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import pt.ist.cmu.chargist.data.model.ChargerWithDetails
-import pt.ist.cmu.chargist.data.model.ChargingSlot
-import pt.ist.cmu.chargist.data.model.ChargingSpeed
-import pt.ist.cmu.chargist.data.model.ConnectorType
+import pt.ist.cmu.chargist.data.model.*
 import pt.ist.cmu.chargist.data.repository.ChargerRepository
+import pt.ist.cmu.chargist.data.repository.ImageStorageRepository
 import pt.ist.cmu.chargist.data.repository.UserRepository
 import pt.ist.cmu.chargist.util.NetworkResult
+import java.util.UUID
+import android.util.Base64
+
+/* ───────────── state holders ───────────── */
 
 data class ChargerDetailState(
     val chargerWithDetails: ChargerWithDetails? = null,
@@ -43,233 +42,150 @@ data class SearchState(
     val error: String? = null
 )
 
+/* ───────────── VM ───────────── */
+
 class ChargerViewModel(
     private val chargerRepository: ChargerRepository,
-    private val userRepository: UserRepository
+    private val userRepository:    UserRepository,
+    private val imageRepository:   ImageStorageRepository
 ) : ViewModel() {
 
-    private val _chargerDetailState = MutableStateFlow(ChargerDetailState(isLoading = false))
-    val chargerDetailState: StateFlow<ChargerDetailState> = _chargerDetailState.asStateFlow()
+    /* ---------- state ---------- */
 
-    private val _chargerCreationState = MutableStateFlow(ChargerCreationState())
-    val chargerCreationState: StateFlow<ChargerCreationState> = _chargerCreationState.asStateFlow()
+    private val _detail = MutableStateFlow(ChargerDetailState())
+    val  chargerDetailState: StateFlow<ChargerDetailState> = _detail.asStateFlow()
 
-    private val _searchState = MutableStateFlow(SearchState())
-    val searchState: StateFlow<SearchState> = _searchState.asStateFlow()
+    private val _create = MutableStateFlow(ChargerCreationState())
+    val  chargerCreationState: StateFlow<ChargerCreationState> = _create.asStateFlow()
 
-    fun loadChargerDetails(chargerId: String) {
-        viewModelScope.launch {
-            _chargerDetailState.value = ChargerDetailState(isLoading = true)
+    private val _search = MutableStateFlow(SearchState())
+    val  searchState: StateFlow<SearchState> = _search.asStateFlow()
 
-            chargerRepository.getChargerWithDetails(chargerId).collectLatest { result ->
-                when (result) {
-                    is NetworkResult.Success -> {
-                        _chargerDetailState.value = ChargerDetailState(
-                            chargerWithDetails = result.data,
-                            isLoading = false
-                        )
-                    }
-                    is NetworkResult.Error -> {
-                        _chargerDetailState.value = ChargerDetailState(
-                            error = result.message,
-                            isLoading = false
-                        )
-                    }
-                    NetworkResult.Loading -> {
-                        _chargerDetailState.value = ChargerDetailState(isLoading = true)
-                    }
-                }
+    /* ---------- details ---------- */
+
+    fun loadChargerDetails(id: String) = viewModelScope.launch {
+        _detail.value = ChargerDetailState(isLoading = true)
+        chargerRepository.getChargerWithDetails(id).collectLatest { result ->
+            _detail.value = when (result) {
+                is NetworkResult.Success -> ChargerDetailState(result.data, false)
+                is NetworkResult.Error   -> ChargerDetailState(error = result.message)
+                NetworkResult.Loading    -> ChargerDetailState(isLoading = true)
             }
         }
     }
 
-    fun toggleFavorite() {
-        viewModelScope.launch {
-            val currentCharger = _chargerDetailState.value.chargerWithDetails?.charger ?: return@launch
-
-            val result = chargerRepository.updateFavoriteStatus(currentCharger.id, !currentCharger.isFavorite)
-
-            if (result is NetworkResult.Success) {
-                // Update the current state with the new favorite status
-                val updatedCharger = result.data
-                val currentDetails = _chargerDetailState.value.chargerWithDetails
-
-                if (currentDetails != null) {
-                    _chargerDetailState.value = _chargerDetailState.value.copy(
-                        chargerWithDetails = currentDetails.copy(charger = updatedCharger)
-                    )
-                }
+    fun toggleFavorite() = viewModelScope.launch {
+        val charger = _detail.value.chargerWithDetails?.charger ?: return@launch
+        when (val res = chargerRepository.updateFavoriteStatus(charger.id, !charger.isFavorite)) {
+            is NetworkResult.Success -> {
+                _detail.update { it.copy(chargerWithDetails = it.chargerWithDetails?.copy(charger = res.data)) }
             }
+            else -> {}
         }
     }
 
-    fun updateChargerCreationName(name: String) {
-        _chargerCreationState.value = _chargerCreationState.value.copy(name = name)
+    /* ---------- mutators for the “add charger” screen ---------- */
+
+    fun updateChargerCreationName(name: String)              { _create.update { it.copy(name = name) } }
+    fun updateChargerCreationLocation(loc: LatLng)           { _create.update { it.copy(location = loc) } }
+    fun updateChargerCreationImage(uri: Uri)                 { _create.update { it.copy(imageUri = uri) } }
+    fun resetChargerCreation()                               { _create.value = ChargerCreationState() }
+
+    /* ---------- create charger ---------- */
+
+    /* ---------- create charger ---------- */
+    fun createCharger() = viewModelScope.launch {
+        var s = _create.value
+
+        /* 1 · quick validation ------------------------------------------------ */
+        if (s.name.isBlank())   { _create.value = s.copy(error = "Name cannot be empty"); return@launch }
+        if (s.location == null) { _create.value = s.copy(error = "Please select a location"); return@launch }
+
+        _create.value = s.copy(isSubmitting = true, error = null)
+
+        /* 2 · who is the current user?  -------------------------------------- */
+        // 1st choice: the profile row (if you still keep usernames)
+        val uid: String = when (val u = userRepository.getCurrentUser()) {
+            is NetworkResult.Success -> u.data.id          // profile found → ok
+            else -> {                                       // no profile yet → fall back to Firebase
+                val firebaseUid = com.google.firebase.auth.FirebaseAuth
+                    .getInstance().currentUser?.uid
+                if (firebaseUid == null) {                  // not even signed‑in
+                    _create.value = s.copy(isSubmitting = false,
+                        error = "You need to sign‑in first")
+                    return@launch
+                }
+                firebaseUid                                  // good enough for now
+            }
+        }
+
+        /* 3 · deterministic id for the document & picture -------------------- */
+        val chargerId = UUID.randomUUID().toString()
+
+        /* 4 · encode picture (if any) ---------------------------------------- */
+        val base64: String? = try {
+            s.imageUri?.let { imageRepository.encodeImage(it) }
+        } catch (t: Throwable) {
+            _create.value = s.copy(isSubmitting = false,
+                error = "Image encode failed: ${t.message}")
+            return@launch
+        }
+
+        /* 5 · write to Firestore --------------------------------------------- */
+        when (val res = chargerRepository.createCharger(
+            name      = s.name,
+            location  = s.location,
+            imageData = base64,
+            userId    = uid
+        )) {
+            is NetworkResult.Success -> _create.value = ChargerCreationState(isSuccess = true)
+            is NetworkResult.Error   -> _create.value = s.copy(isSubmitting = false,
+                error = res.message)
+            else -> {}   // Loading is impossible here – createCharger() is suspending
+        }
     }
 
-    fun updateChargerCreationLocation(location: LatLng) {
-        _chargerCreationState.value = _chargerCreationState.value.copy(location = location)
-    }
 
-    fun updateChargerCreationImage(imageUri: Uri) {
-        _chargerCreationState.value = _chargerCreationState.value.copy(imageUri = imageUri)
-    }
+    /* ---------- search (unchanged) ---------- */
+    fun updateSearchQuery(q: String)                        { _search.update { it.copy(query = q) } }
+    fun updateSearchChargingSpeed(s: ChargingSpeed?)        { _search.update { it.copy(chargingSpeed = s) } }
+    fun updateSearchAvailability(a: Boolean?)               { _search.update { it.copy(isAvailable = a) } }
+    fun updateSearchMaxPrice(p: Double?)                    { _search.update { it.copy(maxPrice = p) } }
+    fun updateSearchSortBy(sort: String)                    { _search.update { it.copy(sortBy = sort) } }
 
-    fun createCharger() {
-        viewModelScope.launch {
-            val state = _chargerCreationState.value
+    fun searchChargers() = viewModelScope.launch {
+        val st = _search.value
+        _search.value = st.copy(isLoading = true, error = null)
 
-            if (state.name.isBlank()) {
-                _chargerCreationState.value = state.copy(error = "Name cannot be empty")
-                return@launch
-            }
-
-            if (state.location == null) {
-                _chargerCreationState.value = state.copy(error = "Please select a location")
-                return@launch
-            }
-
-            _chargerCreationState.value = state.copy(isSubmitting = true, error = null)
-
-            // Get current user
-            val userResult = userRepository.getCurrentUser()
-            if (userResult !is NetworkResult.Success) {
-                _chargerCreationState.value = state.copy(
-                    isSubmitting = false,
-                    error = "Please create a username first"
-                )
-                return@launch
-            }
-
-            // Create charger
-            val imageUrl = state.imageUri?.toString() // In a real app, would upload the image first
-            val result = chargerRepository.createCharger(
-                name = state.name,
-                location = state.location,
-                imageUrl = imageUrl,
-                userId = userResult.data.id
+        when (val res = chargerRepository.searchChargers(
+            query = st.query.takeIf { it.isNotBlank() },
+            chargingSpeed = st.chargingSpeed,
+            isAvailable   = st.isAvailable,
+            maxPrice      = st.maxPrice,
+            sortBy        = st.sortBy
+        )) {
+            is NetworkResult.Success -> _search.value = st.copy(
+                searchResults = res.data.map {
+                    ChargerWithDetails(it, emptyList(), emptyList(), emptyList())
+                },
+                isLoading = false
             )
-
-            when (result) {
-                is NetworkResult.Success -> {
-                    _chargerCreationState.value = ChargerCreationState(isSuccess = true)
-                }
-                is NetworkResult.Error -> {
-                    _chargerCreationState.value = state.copy(
-                        isSubmitting = false,
-                        error = result.message
-                    )
-                }
-                NetworkResult.Loading -> {
-                    // Already set loading state above
-                }
-            }
+            is NetworkResult.Error   -> _search.value = st.copy(error = res.message, isLoading = false)
+            else -> {}
         }
     }
 
-    fun resetChargerCreation() {
-        _chargerCreationState.value = ChargerCreationState()
-    }
+    /* ---------- slots shortcuts ---------- */
 
-    fun updateSearchQuery(query: String) {
-        _searchState.value = _searchState.value.copy(query = query)
-    }
-
-    fun updateSearchChargingSpeed(speed: ChargingSpeed?) {
-        _searchState.value = _searchState.value.copy(chargingSpeed = speed)
-    }
-
-    fun updateSearchAvailability(isAvailable: Boolean?) {
-        _searchState.value = _searchState.value.copy(isAvailable = isAvailable)
-    }
-
-    fun updateSearchMaxPrice(maxPrice: Double?) {
-        _searchState.value = _searchState.value.copy(maxPrice = maxPrice)
-    }
-
-    fun updateSearchSortBy(sortBy: String) {
-        _searchState.value = _searchState.value.copy(sortBy = sortBy)
-    }
-
-    fun searchChargers() {
+    fun addChargingSlot(chargerId: String, speed: ChargingSpeed, connector: ConnectorType, price: Double) =
         viewModelScope.launch {
-            val state = _searchState.value
-            _searchState.value = state.copy(isLoading = true, error = null)
-
-            val result = chargerRepository.searchChargers(
-                query = state.query.takeIf { it.isNotBlank() },
-                chargingSpeed = state.chargingSpeed,
-                isAvailable = state.isAvailable,
-                maxPrice = state.maxPrice,
-                sortBy = state.sortBy
-            )
-
-            when (result) {
-                is NetworkResult.Success -> {
-                    // For simplicity, we're getting full details immediately
-                    // In a real app, you might want to get basic info for the list
-                    // and fetch details only when a user selects a charger
-                    val detailedResults = result.data.map { charger ->
-                        val detailsResult = chargerRepository.getChargerWithDetails(charger.id).collectLatest {
-                            // This would collect the latest charger details
-                        }
-                        // For now, we're making a simplified version just for the example
-                        ChargerWithDetails(
-                            charger = charger,
-                            chargingSlots = emptyList(),
-                            nearbyServices = emptyList(),
-                            paymentSystems = emptyList()
-                        )
-                    }
-
-                    _searchState.value = state.copy(
-                        searchResults = detailedResults,
-                        isLoading = false
-                    )
-                }
-                is NetworkResult.Error -> {
-                    _searchState.value = state.copy(
-                        error = result.message,
-                        isLoading = false
-                    )
-                }
-                NetworkResult.Loading -> {
-                    // Already set loading state above
-                }
-            }
-        }
-    }
-
-    fun addChargingSlot(
-        chargerId: String,
-        speed: ChargingSpeed,
-        connectorType: ConnectorType,
-        price: Double
-    ) {
-        viewModelScope.launch {
-            val result = chargerRepository.createChargingSlot(
-                chargerId = chargerId,
-                speed = speed,
-                connectorType = connectorType,
-                price = price
-            )
-
-            if (result is NetworkResult.Success) {
-                // Refresh charger details
+            if (chargerRepository.createChargingSlot(chargerId, speed, connector, price) is NetworkResult.Success)
                 loadChargerDetails(chargerId)
-            }
         }
-    }
 
-    fun reportSlotDamage(slotId: String, isDamaged: Boolean) {
+    fun reportSlotDamage(slotId: String, damaged: Boolean) =
         viewModelScope.launch {
-            val result = chargerRepository.reportDamage(slotId, isDamaged)
-
-            if (result is NetworkResult.Success) {
-                val slot = result.data
-                // Refresh charger details
-                loadChargerDetails(slot.chargerId)
-            }
+            val res = chargerRepository.reportDamage(slotId, damaged)
+            if (res is NetworkResult.Success) loadChargerDetails(res.data.chargerId)
         }
-    }
 }

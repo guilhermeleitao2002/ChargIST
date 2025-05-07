@@ -28,7 +28,7 @@ data class Charger(
     val name: String = "",
     val latitude: Double = 0.0,
     val longitude: Double = 0.0,
-    val imageUrl: String? = null,
+    val imageData: String? = null,
     val isFavorite: Boolean = false,
     val createdBy: String = "",
     val createdAt: Long = 0L,

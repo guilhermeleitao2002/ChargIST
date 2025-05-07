@@ -39,6 +39,8 @@ import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
 
 import java.util.concurrent.TimeUnit
+import com.google.firebase.firestore.FirebaseFirestoreSettings
+import pt.ist.cmu.chargist.data.repository.ImageStorageRepository
 
 /* ───────────────────── APP‑WIDE SINGLETONS ───────────────────── */
 
@@ -96,21 +98,34 @@ val firebaseModule = module {
 
     /* Core Firebase singletons */
     single { FirebaseAuth.getInstance() }
-    single { FirebaseFirestore.getInstance() }
+
+    single {
+        FirebaseFirestore.getInstance().apply {
+            val settings = FirebaseFirestoreSettings.Builder()
+                .setPersistenceEnabled(true)   // turn on the local disk cache
+                .build()
+            firestoreSettings = settings
+        }
+    }
+
+    single { com.google.firebase.storage.FirebaseStorage.getInstance() }
+    single { ImageStorageRepository(get()) }
+
+    single<ChargerRepository> { FirestoreChargerRepository(get()) }
 
     /* Auth repository */
     single<AuthRepository> {
         FirebaseAuthRepository(
             androidContext(),
             get(),               // FirebaseAuth
-            get()                // FirebaseFirestore
+            get()                // FirebaseFirestore  (now with cache‑on)
         )
     }
 
-    /* --------------  🔥  NEW: ChargerRepository over Firestore -------------- */
+    /* Charger repository – pure Firestore implementation */
     single<ChargerRepository> { FirestoreChargerRepository(get()) }
-    //                         ^ maps interface to your new implementation
 }
+
 
 /* ───────────────────────────── VIEW‑MODELS ──────────────────────────────── */
 val viewModelModule = module {
@@ -119,11 +134,18 @@ val viewModelModule = module {
 
     viewModel {
         MapViewModel(
-            get(),   // ChargerRepository (now backed by Firestore)
+            get(),   // ChargerRepository
             get(),   // FusedLocationProviderClient
             get()    // Context
         )
     }
 
-    viewModel { ChargerViewModel(get(), get()) }
+    viewModel {
+        ChargerViewModel(
+            get(),   // ChargerRepository
+            get(),   // UserRepository
+            get()    // ImageStorageRepository  ← add this
+        )
+    }
 }
+

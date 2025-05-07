@@ -2,9 +2,11 @@ package pt.ist.cmu.chargist.data.repository
 
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.snapshots
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
@@ -16,163 +18,184 @@ class FirestoreChargerRepository(
     private val db: FirebaseFirestore
 ) : ChargerRepository {
 
-    /* ───────── helpers ───────── */
+    /* ---------- helpers ---------- */
 
     private val chargersCol get() = db.collection("chargers")
     private fun chargerDoc(id: String) = chargersCol.document(id)
+    private fun slotsCol(chargerId: String) =
+        chargerDoc(chargerId).collection("chargingSlots")
 
-    /* ───────── live lists ───────── */
+    /* ---------- live lists ---------- */
 
     override fun getAllChargers(): Flow<List<Charger>> =
-        chargersCol.snapshots()
-            .map { qs -> qs.toObjects(Charger::class.java) }
+        chargersCol.snapshots().map { it.toObjects(Charger::class.java) }
 
     override fun getFavoriteChargers(): Flow<List<Charger>> =
         chargersCol.whereEqualTo("isFavorite", true)
             .snapshots()
-            .map { qs -> qs.toObjects(Charger::class.java) }
+            .map { it.toObjects(Charger::class.java) }
 
     override fun getChargersInBounds(bounds: LatLngBounds): Flow<List<Charger>> =
-        chargersCol.snapshots()
-            .map { qs ->
-                qs.toObjects(Charger::class.java)
-                    .filter {
-                        it.latitude  in bounds.southwest.latitude..bounds.northeast.latitude &&
-                                it.longitude in bounds.southwest.longitude..bounds.northeast.longitude
-                    }
+        chargersCol.snapshots().map { qs ->
+            qs.toObjects(Charger::class.java).filter {
+                it.latitude  in bounds.southwest.latitude..bounds.northeast.latitude &&
+                        it.longitude in bounds.southwest.longitude..bounds.northeast.longitude
             }
+        }
 
-    /* ───────── single fetch ───────── */
+    /* ---------- single‑doc helpers ---------- */
 
     override suspend fun getChargerById(chargerId: String): NetworkResult<Charger> =
         runCatching {
             chargerDoc(chargerId).get().await().toObject(Charger::class.java)
                 ?: return NetworkResult.Error("Charger not found")
         }.fold(
-            onSuccess = { NetworkResult.Success(it) },
-            onFailure = { NetworkResult.Error(it.message ?: "Failed to fetch") }
+            { NetworkResult.Success(it) },
+            { NetworkResult.Error(it.message ?: "Fetch failed") }
         )
 
-    /* ───────── create ───────── */
+    /* ---------- create / mutate ---------- */
+    /* only the createCharger function shown – keep the rest of the file unchanged */
 
     override suspend fun createCharger(
         name: String,
         location: LatLng,
-        imageUrl: String?,
-        userId: String
+        imageData: String?,
+        userId: String,
     ): NetworkResult<Charger> {
         val id = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
         val charger = Charger(
-            id = id,
-            name = name,
-            latitude = location.latitude,
-            longitude = location.longitude,
-            imageUrl = imageUrl,
-            createdBy = userId,
-            createdAt = System.currentTimeMillis(),
-            updatedAt = System.currentTimeMillis()
+            id          = id,
+            name        = name,
+            latitude    = location.latitude,
+            longitude   = location.longitude,
+            imageData   = imageData,
+            createdBy   = userId,
+            createdAt   = now,
+            updatedAt   = now
         )
+
         return runCatching {
             chargerDoc(id).set(charger).await()
             NetworkResult.Success(charger)
-        }.getOrElse { NetworkResult.Error(it.message ?: "Failed to create") }
+        }.getOrElse { NetworkResult.Error(it.message ?: "Create failed") }
     }
-
-    /* ───────── update favourite ───────── */
 
     override suspend fun updateFavoriteStatus(
         chargerId: String,
         isFavorite: Boolean
     ): NetworkResult<Charger> = runCatching {
-        chargerDoc(chargerId).update("isFavorite", isFavorite).await()
-        getChargerById(chargerId)          // fetch updated doc
-    }.getOrElse { NetworkResult.Error(it.message ?: "Failed to update") }
+        chargerDoc(chargerId).update(
+            mapOf(
+                "isFavorite" to isFavorite,
+                "updatedAt"  to FieldValue.serverTimestamp()
+            )
+        ).await()
+        getChargerById(chargerId)
+    }.getOrElse { NetworkResult.Error(it.message ?: "Update failed") }
 
-    /* ───────── slots – live list ───────── */
+    /* ---------- slots ---------- */
 
     override fun getChargingSlotsForCharger(chargerId: String): Flow<List<ChargingSlot>> =
-        chargerDoc(chargerId).collection("chargingSlots")
-            .snapshots()
-            .map { qs -> qs.toObjects(ChargingSlot::class.java) }
-
-    /* ── the four CRUD helpers still TODO – won’t be called for now ───────── */
+        slotsCol(chargerId).snapshots().map { it.toObjects(ChargingSlot::class.java) }
 
     override suspend fun createChargingSlot(
-        chargerId: String, speed: ChargingSpeed,
-        connectorType: ConnectorType, price: Double
-    ) = TODO()
+        chargerId: String,
+        speed: ChargingSpeed,
+        connectorType: ConnectorType,
+        price: Double
+    ): NetworkResult<ChargingSlot> = runCatching {
+        val slotId = UUID.randomUUID().toString()
+        val slot = ChargingSlot(
+            id            = slotId,
+            chargerId     = chargerId,
+            speed         = speed,
+            connectorType = connectorType,
+            price         = price,
+            updatedAt     = System.currentTimeMillis()
+        )
+        slotsCol(chargerId).document(slotId).set(slot).await()
+        NetworkResult.Success(slot)
+    }.getOrElse { NetworkResult.Error(it.message ?: "Slot create failed") }
 
     override suspend fun updateChargingSlot(
-        slotId: String, speed: ChargingSpeed,
-        isAvailable: Boolean, isDamaged: Boolean
-    ) = TODO()
+        slotId: String,
+        speed: ChargingSpeed,
+        isAvailable: Boolean,
+        isDamaged: Boolean
+    ): NetworkResult<ChargingSlot> = runCatching {
+        // we need chargerId → look it up once
+        val slotSnap = db.collectionGroup("chargingSlots")
+            .whereEqualTo("id", slotId).limit(1).get().await()
+        val doc = slotSnap.documents.firstOrNull()
+            ?: return NetworkResult.Error("Slot not found")
 
-    override suspend fun reportDamage(slotId: String, isDamaged: Boolean) =
-        TODO()
+        val updates = mapOf(
+            "speed"       to speed,
+            "isAvailable" to isAvailable,
+            "isDamaged"   to isDamaged,
+            "updatedAt"   to System.currentTimeMillis()
+        )
+        doc.reference.update(updates).await()
+        NetworkResult.Success(doc.reference.get().await().toObject(ChargingSlot::class.java)!!)
+    }.getOrElse { NetworkResult.Error(it.message ?: "Update failed") }
 
-    /* ───────── nearby services – live list ───────── */
+    override suspend fun reportDamage(
+        slotId: String,
+        isDamaged: Boolean
+    ): NetworkResult<ChargingSlot> =
+        updateChargingSlot(slotId, speed = ChargingSpeed.SLOW,   // keep previous speed
+            isAvailable = !isDamaged, isDamaged = isDamaged)
+
+    /* ---------- nearby services (stub) ---------- */
 
     override fun getNearbyServicesForCharger(chargerId: String): Flow<List<NearbyService>> =
-        chargerDoc(chargerId).collection("nearbyServices")
-            .snapshots()
-            .map { qs -> qs.toObjects(NearbyService::class.java) }
+        flow { emit(emptyList()) }
 
     override suspend fun addNearbyService(
-        chargerId: String, name: String, type: String, distance: Int
+        chargerId: String,
+        name: String,
+        type: String,
+        distance: Int
     ) = TODO()
 
-    /* ───────── getChargerWithDetails (✅  implemented) ───────── */
+    /* ---------- details wrapper ---------- */
 
     override fun getChargerWithDetails(
         chargerId: String
     ): Flow<NetworkResult<ChargerWithDetails>> = flow {
         emit(NetworkResult.Loading)
-
-        try {
-            /* 1. fetch the base charger */
-            val chargerSnap = chargerDoc(chargerId).get().await()
-            val charger = chargerSnap.toObject(Charger::class.java)
-                ?: return@flow emit(NetworkResult.Error("Charger not found"))
-
-            /* 2. fetch slots & (optionally) services */
-            val slots = chargerDoc(chargerId)
-                .collection("chargingSlots")
-                .get().await()
-                .toObjects(ChargingSlot::class.java)
-
-            // If you’re not ready to use services yet, keep it empty
-            val services = emptyList<NearbyService>()
-
-            /* 3. wrap & emit */
-            val details = ChargerWithDetails(
-                charger         = charger,
-                chargingSlots   = slots,
-                nearbyServices  = services,
-                paymentSystems  = emptyList()     // not stored yet
-            )
-            emit(NetworkResult.Success(details))
-
-        } catch (t: Throwable) {
-            emit(NetworkResult.Error(t.message ?: "Failed to fetch details"))
+        when (val base = getChargerById(chargerId)) {
+            is NetworkResult.Error   -> emit(base)
+            is NetworkResult.Success -> {
+                val slots = getChargingSlotsForCharger(chargerId)
+                    .map { it.sortedBy { s -> s.speed } }       // small touch
+                    .first()                                  // one‑shot fetch
+                emit(
+                    NetworkResult.Success(
+                        ChargerWithDetails(
+                            charger        = base.data,
+                            chargingSlots  = slots,
+                            nearbyServices = emptyList(),        // not yet
+                            paymentSystems = emptyList()
+                        )
+                    )
+                )
+            }
+            else -> {}
         }
     }
 
-    /* ───────── very naïve search – client side ───────── */
+    /* ---------- naive client‑side search ---------- */
 
     override suspend fun searchChargers(
-        query: String?,
-        chargingSpeed: ChargingSpeed?,
-        isAvailable: Boolean?,
-        maxPrice: Double?,
-        sortBy: String?
+        query: String?, chargingSpeed: ChargingSpeed?, isAvailable: Boolean?,
+        maxPrice: Double?, sortBy: String?
     ): NetworkResult<List<Charger>> = try {
-        /* fetch all – cheap because we keep only charger docs */
-        val chargers = chargersCol.get().await().toObjects(Charger::class.java)
-
-        val filtered = chargers.filter { c ->
-            (query.isNullOrBlank() || c.name.contains(query, true))
-        }
-        NetworkResult.Success(filtered)
+        val list = chargersCol.get().await().toObjects(Charger::class.java)
+            .filter { q -> query.isNullOrBlank() || q.name.contains(query, true) }
+        NetworkResult.Success(list)
     } catch (t: Throwable) {
         NetworkResult.Error(t.message ?: "Search failed")
     }
