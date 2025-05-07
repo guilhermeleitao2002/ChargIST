@@ -1,11 +1,11 @@
 package pt.ist.cmu.chargist.di
 
-/* Android / Kotlin */
+/* Kotlin / Android */
 import android.content.Context
 import android.net.ConnectivityManager
 import androidx.room.Room
 
-/* Google Play services & Firebase */
+/* Google Play services & Firebase */
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
@@ -22,38 +22,37 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
-/* Data layer */
+/* Project – data layer */
 import pt.ist.cmu.chargist.data.ChargISTDatabase
 import pt.ist.cmu.chargist.data.api.ChargISTApi
 import pt.ist.cmu.chargist.data.api.ChargISTApiService
-import pt.ist.cmu.chargist.data.repository.*
+import pt.ist.cmu.chargist.data.repository.AuthRepository
+import pt.ist.cmu.chargist.data.repository.ChargerRepository
+import pt.ist.cmu.chargist.data.repository.FirestoreChargerRepository     // ← NEW
+import pt.ist.cmu.chargist.data.repository.FirebaseAuthRepository
+import pt.ist.cmu.chargist.data.repository.UserRepository
+import pt.ist.cmu.chargist.data.repository.UserRepositoryImpl
 
-/* View‑models */
-import pt.ist.cmu.chargist.ui.viewmodel.*
+/* Project – view‑models */
+import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
+import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
+import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
 
 import java.util.concurrent.TimeUnit
 
-/* ─────────────────────────  APP‑WIDE SINGLETONS ───────────────────────── */
+/* ───────────────────── APP‑WIDE SINGLETONS ───────────────────── */
 
 val appModule = module {
-
-    single {
-        androidContext().getSharedPreferences("chargist_prefs", Context.MODE_PRIVATE)
-    }
-
-    single<FusedLocationProviderClient> {
-        LocationServices.getFusedLocationProviderClient(androidContext())
-    }
-
-    single {
-        androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    }
+    single     { androidContext().getSharedPreferences("chargist_prefs", Context.MODE_PRIVATE) }
+    single<FusedLocationProviderClient> { LocationServices.getFusedLocationProviderClient(androidContext()) }
+    single     { androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager }
 }
 
-/* ───────────────────────────────  ROOM  ──────────────────────────────── */
-
+/* ───────────────────────────── ROOM (local cache) ───────────────────────────
+   You can keep these beans if you still use Room elsewhere; they no longer feed
+   the ChargerRepository. Feel free to delete once the whole project is on Firestore.
+────────────────────────────────────────────────────────────────────────────── */
 val dataModule = module {
-
     single {
         Room.databaseBuilder(
             androidContext(),
@@ -62,23 +61,17 @@ val dataModule = module {
         ).build()
     }
 
-    /* DAOs – repositories need them */
-    single { get<ChargISTDatabase>().chargerDao() }
+    // DAOs (leave or remove – not referenced by the Firestore repo)
     single { get<ChargISTDatabase>().userDao() }
 
-    single<ChargerRepository> { ChargerRepositoryImpl(get(), get(), get()) }
-    single<UserRepository>    { UserRepositoryImpl(get(), get()) }
+    // User repo still backed by Room
+    single<UserRepository> { UserRepositoryImpl(get(), get()) }
 }
 
-/* ─────────────────────────────  NETWORK  ─────────────────────────────── */
-
+/* ───────────────────────────── NETWORK (Retrofit) ─────────────────────────── */
 val networkModule = module {
-
     single {
-        val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
-
+        val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
         OkHttpClient.Builder()
             .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -88,7 +81,7 @@ val networkModule = module {
 
     single {
         Retrofit.Builder()
-            .baseUrl("https://your-backend-url.com/api/")   // TODO replace
+            .baseUrl("https://your-backend-url.com/api/")   // TODO replace when you have one
             .client(get())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -98,34 +91,37 @@ val networkModule = module {
     single { ChargISTApi(get()) }
 }
 
-/* ────────────────────────  FIREBASE AUTH / DB  ──────────────────────── */
-
+/* ───────────────────────────── FIREBASE  ──────────────────────────────── */
 val firebaseModule = module {
 
+    /* Core Firebase singletons */
     single { FirebaseAuth.getInstance() }
     single { FirebaseFirestore.getInstance() }
 
+    /* Auth repository */
     single<AuthRepository> {
         FirebaseAuthRepository(
-            androidContext(),  // pass Context directly
-            get(),             // FirebaseAuth
-            get()              // FirebaseFirestore
+            androidContext(),
+            get(),               // FirebaseAuth
+            get()                // FirebaseFirestore
         )
     }
+
+    /* --------------  🔥  NEW: ChargerRepository over Firestore -------------- */
+    single<ChargerRepository> { FirestoreChargerRepository(get()) }
+    //                         ^ maps interface to your new implementation
 }
 
-/* ─────────────────────────────  VIEW‑MODELS  ─────────────────────────── */
-
+/* ───────────────────────────── VIEW‑MODELS ──────────────────────────────── */
 val viewModelModule = module {
 
     viewModel { UserViewModel(get()) }
 
-    /** Map screen VM */
     viewModel {
         MapViewModel(
-            get(),                 // ChargerRepository
-            get(),                 // FusedLocationProviderClient
-            androidContext()       // ← Context injected without a bean
+            get(),   // ChargerRepository (now backed by Firestore)
+            get(),   // FusedLocationProviderClient
+            get()    // Context
         )
     }
 
