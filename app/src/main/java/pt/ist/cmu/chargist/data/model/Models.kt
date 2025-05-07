@@ -4,94 +4,83 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.firestore.IgnoreExtraProperties
 
-// Charging speed enumeration
-enum class ChargingSpeed {
-    FAST, MEDIUM, SLOW
-}
+/* ───────────── enums ───────────── */
 
-// Connector type enumeration
-enum class ConnectorType {
-    CCS2, TYPE2
-}
+enum class ChargingSpeed { FAST, MEDIUM, SLOW }
+enum class ConnectorType  { CCS2, TYPE2 }
 
-// Payment system model
-data class PaymentSystem(
-    val id: String,
-    val name: String
-)
+/* ───────────── simple model ───────────── */
 
-//// User entity
-//@Entity(tableName = "users")
-//data class User(
-//    @PrimaryKey val id: String,
-//    val username: String,
-//    val createdAt: Long = System.currentTimeMillis()
-//)
+data class PaymentSystem(val id: String = "", val name: String = "")
 
-// Charger entity
+/* ───────────── Firestore‑ / Room‑backed entities ─────────────
+   → every property has a default value        (Firestore needs this)
+   → @IgnoreExtraProperties ignores extra db fields
+   → Room annotations kept for local caching
+───────────────────────────────────────────────────────────────── */
+
+@IgnoreExtraProperties
 @Entity(tableName = "chargers")
 data class Charger(
-    @PrimaryKey val id: String,
-    val name: String,
-    val latitude: Double,
-    val longitude: Double,
-    val imageUrl: String?,
+    @PrimaryKey val id: String = "",
+    val name: String = "",
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+    val imageUrl: String? = null,
     val isFavorite: Boolean = false,
-    val createdBy: String,
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val createdBy: String = "",
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 ) {
     fun getLatLng(): LatLng = LatLng(latitude, longitude)
 }
 
-// Charging Slot entity with foreign key to Charger
+@IgnoreExtraProperties
 @Entity(
     tableName = "charging_slots",
-    foreignKeys = [
-        ForeignKey(
-            entity = Charger::class,
-            parentColumns = ["id"],
-            childColumns = ["chargerId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ]
+    foreignKeys = [ForeignKey(
+        entity = Charger::class,
+        parentColumns = ["id"],
+        childColumns = ["chargerId"],
+        onDelete = ForeignKey.CASCADE
+    )]
 )
 data class ChargingSlot(
-    @PrimaryKey val id: String,
-    val chargerId: String,
-    val speed: ChargingSpeed,
-    val connectorType: ConnectorType,
+    @PrimaryKey val id: String = "",
+    val chargerId: String = "",
+    val speed: ChargingSpeed = ChargingSpeed.SLOW,
+    val connectorType: ConnectorType = ConnectorType.CCS2,
     val isAvailable: Boolean = true,
     val isDamaged: Boolean = false,
-    val price: Double,
-    val updatedAt: Long = System.currentTimeMillis()
+    val price: Double = 0.0,
+    val updatedAt: Long = 0L
 )
 
-// NearbyService entity with foreign key to Charger
+@IgnoreExtraProperties
 @Entity(
     tableName = "nearby_services",
-    foreignKeys = [
-        ForeignKey(
-            entity = Charger::class,
-            parentColumns = ["id"],
-            childColumns = ["chargerId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ]
+    foreignKeys = [ForeignKey(
+        entity = Charger::class,
+        parentColumns = ["id"],
+        childColumns = ["chargerId"],
+        onDelete = ForeignKey.CASCADE
+    )]
 )
 data class NearbyService(
-    @PrimaryKey val id: String,
-    val chargerId: String,
-    val name: String,
-    val type: String, // e.g., "FOOD", "TOILET", "AIR_WATER"
-    val distance: Int // distance in meters from charger
+    @PrimaryKey val id: String = "",
+    val chargerId: String = "",
+    val name: String = "",
+    val type: String = "",      // e.g. "FOOD", "TOILET", "AIR_WATER"
+    val distance: Int = 0       // metres
 )
 
-// Charger with all related information (for UI display)
+/* ───────────── composite for UI ───────────── */
+
 data class ChargerWithDetails(
-    val charger: Charger,
-    val chargingSlots: List<ChargingSlot>,
-    val nearbyServices: List<NearbyService>,
-    val paymentSystems: List<PaymentSystem>
+    val charger: Charger              = Charger(),
+    val chargingSlots: List<ChargingSlot> = emptyList(),
+    val nearbyServices: List<NearbyService> = emptyList(),
+    val paymentSystems: List<PaymentSystem> = emptyList()
 )
