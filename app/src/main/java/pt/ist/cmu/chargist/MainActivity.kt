@@ -29,15 +29,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ChargISTApp() {
-    val navController = rememberNavController()
-
     Scaffold(
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
-        ChargISTNavigation(
-            navController = navController,
-            modifier = Modifier.padding(innerPadding)
-        )
+        // new nav host – no parameters required
+        ChargISTNavigation()          // ← this is the only change
     }
 }
 
