@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pt.ist.cmu.chargist.data.model.User
 import pt.ist.cmu.chargist.data.repository.AuthRepository
-import pt.ist.cmu.chargist.data.repository.UserRepository
 import pt.ist.cmu.chargist.util.NetworkResult
 
 data class UserState(

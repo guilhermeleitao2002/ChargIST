@@ -42,7 +42,10 @@ import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import com.google.firebase.auth.FirebaseAuth
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,6 +68,16 @@ fun HomeScreen(
     }
 
     val mapState by viewModel.mapState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+
+    LaunchedEffect(userId) {
+        if (userId != null) {
+            viewModel.loadFavoriteChargers2(userId)
+        }
+    }
 
 
     // Initial position - IST Campus (Alameda)

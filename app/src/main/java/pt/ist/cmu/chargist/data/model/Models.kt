@@ -3,8 +3,10 @@ package pt.ist.cmu.chargist.data.model
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import androidx.room.TypeConverters
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.firestore.IgnoreExtraProperties
+import pt.ist.cmu.chargist.util.Converters
 
 /* ───────────── enums ───────────── */
 
@@ -22,6 +24,7 @@ data class PaymentSystem(val id: String = "", val name: String = "")
 ───────────────────────────────────────────────────────────────── */
 
 @IgnoreExtraProperties
+@TypeConverters(Converters::class)
 @Entity(tableName = "chargers")
 data class Charger(
     @PrimaryKey val id: String = "",
@@ -29,15 +32,16 @@ data class Charger(
     val latitude: Double = 0.0,
     val longitude: Double = 0.0,
     val imageData: String? = null,
-    val isFavorite: Boolean = false,
+    val favoriteUsers: List<String> = emptyList(),
     val createdBy: String = "",
     val createdAt: Long = 0L,
-    val updatedAt: Long = 0L
+    val updatedAt: Long? = 0L
 ) {
     fun getLatLng(): LatLng = LatLng(latitude, longitude)
 }
 
 @IgnoreExtraProperties
+@TypeConverters(Converters::class)
 @Entity(
     tableName = "charging_slots",
     foreignKeys = [ForeignKey(

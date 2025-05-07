@@ -9,10 +9,10 @@ import kotlinx.coroutines.launch
 import pt.ist.cmu.chargist.data.model.*
 import pt.ist.cmu.chargist.data.repository.ChargerRepository
 import pt.ist.cmu.chargist.data.repository.ImageStorageRepository
-import pt.ist.cmu.chargist.data.repository.UserRepository
 import pt.ist.cmu.chargist.util.NetworkResult
 import java.util.UUID
 import android.util.Base64
+import pt.ist.cmu.chargist.data.repository.AuthRepository
 
 /* ───────────── state holders ───────────── */
 
@@ -46,7 +46,7 @@ data class SearchState(
 
 class ChargerViewModel(
     private val chargerRepository: ChargerRepository,
-    private val userRepository:    UserRepository,
+    private val authRepository:    AuthRepository,
     private val imageRepository:   ImageStorageRepository
 ) : ViewModel() {
 
@@ -74,13 +74,12 @@ class ChargerViewModel(
         }
     }
 
-    fun toggleFavorite() = viewModelScope.launch {
+    fun toggleFavorite(userId: String) = viewModelScope.launch {
         val charger = _detail.value.chargerWithDetails?.charger ?: return@launch
-        when (val res = chargerRepository.updateFavoriteStatus(charger.id, !charger.isFavorite)) {
-            is NetworkResult.Success -> {
-                _detail.update { it.copy(chargerWithDetails = it.chargerWithDetails?.copy(charger = res.data)) }
-            }
-            else -> {}
+        if (charger.favoriteUsers.contains(userId)) {
+            chargerRepository.removeFavorite(userId, charger.id)
+        } else {
+            chargerRepository.addFavorite(userId, charger.id)
         }
     }
 
@@ -105,19 +104,16 @@ class ChargerViewModel(
 
         /* 2 · who is the current user?  -------------------------------------- */
         // 1st choice: the profile row (if you still keep usernames)
-        val uid: String = when (val u = userRepository.getCurrentUser()) {
-            is NetworkResult.Success -> u.data.id          // profile found → ok
-            else -> {                                       // no profile yet → fall back to Firebase
-                val firebaseUid = com.google.firebase.auth.FirebaseAuth
-                    .getInstance().currentUser?.uid
-                if (firebaseUid == null) {                  // not even signed‑in
-                    _create.value = s.copy(isSubmitting = false,
-                        error = "You need to sign‑in first")
-                    return@launch
-                }
-                firebaseUid                                  // good enough for now
-            }
+        val user = authRepository.currentUser().first()
+        if (user == null) {
+            _create.value = s.copy(
+                isSubmitting = false,
+                error = "You need to sign-in first"
+            )
+            return@launch
         }
+        val uid = user.id
+
 
         /* 3 · deterministic id for the document & picture -------------------- */
         val chargerId = UUID.randomUUID().toString()
@@ -134,7 +130,7 @@ class ChargerViewModel(
         /* 5 · write to Firestore --------------------------------------------- */
         when (val res = chargerRepository.createCharger(
             name      = s.name,
-            location  = s.location,
+            location  = s.location!!,
             imageData = base64,
             userId    = uid
         )) {

@@ -27,6 +27,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.auth.FirebaseAuth
 import com.google.maps.android.compose.*
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.ChargingSlot
@@ -46,6 +47,8 @@ fun ChargerDetailScreen(
 
     val detailState by viewModel.chargerDetailState.collectAsState()
     val chargerWithDetails = detailState.chargerWithDetails
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+
 
     Scaffold(
         topBar = {
@@ -57,12 +60,14 @@ fun ChargerDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::toggleFavorite) {
-                        val fav = chargerWithDetails?.charger?.isFavorite == true
-                        Icon(
-                            if (fav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = if (fav) "Remove from favourites" else "Add to favourites"
-                        )
+                    if (userId != null && chargerWithDetails != null) {
+                        val isFavorite = chargerWithDetails.charger.favoriteUsers.contains(userId) ?: false
+                        IconButton(onClick = { viewModel.toggleFavorite(userId) }) {
+                            Icon(
+                                if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                contentDescription = if (isFavorite) "Remove from favourites" else "Add to favourites"
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

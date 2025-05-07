@@ -14,7 +14,7 @@ import pt.ist.cmu.chargist.data.model.NearbyService
 @Dao
 interface ChargerDao {
     // Charger operations
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    /*@Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCharger(charger: Charger)
 
     @Update
@@ -76,5 +76,5 @@ interface ChargerDao {
             "INNER JOIN charging_slots cs ON c.id = cs.chargerId " +
             "WHERE cs.speed = :speed AND cs.isAvailable = 1 " +
             "GROUP BY c.id")
-    fun getAvailableChargersBySpeed(speed: String): Flow<List<Charger>>
+    fun getAvailableChargersBySpeed(speed: String): Flow<List<Charger>>*/
 }

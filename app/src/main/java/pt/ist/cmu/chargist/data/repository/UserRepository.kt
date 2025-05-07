@@ -8,16 +8,16 @@ import pt.ist.cmu.chargist.util.NetworkResult
 import java.util.UUID
 import androidx.core.content.edit
 
-interface UserRepository {
+/*interface UserRepository {
     suspend fun createUser(username: String): NetworkResult<User>
     suspend fun getUserById(userId: String): NetworkResult<User>
     suspend fun getCurrentUser(): NetworkResult<User>
     fun getAllUsers(): Flow<List<User>>
     suspend fun setCurrentUser(user: User)
     suspend fun logout()
-}
+}*/
 
-class UserRepositoryImpl(
+/*class UserRepositoryImpl(
     private val userDao: UserDao,
     private val sharedPreferences: SharedPreferences
 ) : UserRepository {
@@ -71,4 +71,4 @@ class UserRepositoryImpl(
     override suspend fun logout() {
         sharedPreferences.edit() { remove(CURRENT_USER_ID) }
     }
-}
+}*/

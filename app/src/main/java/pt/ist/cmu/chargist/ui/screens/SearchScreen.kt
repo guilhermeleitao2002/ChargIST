@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.ChargingSpeed
@@ -154,7 +155,9 @@ fun SearchScreen(
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold
                                             )
-                                            if (charger.isFavorite) {
+                                            val userId = FirebaseAuth.getInstance().currentUser?.uid
+
+                                            if (charger.favoriteUsers.contains(userId)) {
                                                 Spacer(Modifier.width(8.dp))
                                                 Icon(
                                                     Icons.Default.Favorite, "Favorite",

@@ -9,7 +9,7 @@ import pt.ist.cmu.chargist.data.model.User
 
 @Dao
 interface UserDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+   /* @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(user: User)
 
     @Query("SELECT * FROM users WHERE id = :userId")
@@ -19,5 +19,5 @@ interface UserDao {
     suspend fun getUserByUsername(username: String): User?
 
     @Query("SELECT * FROM users")
-    fun getAllUsers(): Flow<List<User>>
+    fun getAllUsers(): Flow<List<User>>*/
 }

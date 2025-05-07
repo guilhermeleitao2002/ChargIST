@@ -46,10 +46,26 @@ class MapViewModel(
 
     init {
         loadChargers()
-        loadFavoriteChargers()
+        //loadFavoriteChargers()
         //viewModelScope.launch {
         //    getCurrentLocation()
         //}
+    }
+
+    fun loadFavoriteChargers2(userId: String) {
+        viewModelScope.launch {
+            try {
+                chargerRepository.getFavoriteChargersForUser(userId).collectLatest { favoriteChargers ->
+                    _mapState.value = _mapState.value.copy(
+                        favoriteChargers = favoriteChargers
+                    )
+                }
+            } catch (e: Exception) {
+                _mapState.value = _mapState.value.copy(
+                    error = "Error loading favorite chargers2: ${e.message}"
+                )
+            }
+        }
     }
 
     private fun loadChargers() {
@@ -63,7 +79,7 @@ class MapViewModel(
                 }
             } catch (e: Exception) {
                 _mapState.value = _mapState.value.copy(
-                    error = "Error loading chargers: ${e.message}",
+                    error = "Error loading chargers aa: ${e.message}",
                     isLoading = false
                 )
             }
@@ -78,22 +94,6 @@ class MapViewModel(
     }
 
 
-    private fun loadFavoriteChargers() {
-        viewModelScope.launch {
-            try {
-                chargerRepository.getFavoriteChargers().collectLatest { favoriteChargers ->
-                    _mapState.value = _mapState.value.copy(
-                        favoriteChargers = favoriteChargers
-                    )
-                }
-            } catch (e: Exception) {
-                _mapState.value = _mapState.value.copy(
-                    error = "Error loading favorite chargers: ${e.message}"
-                )
-            }
-        }
-    }
-
     fun loadChargersInBounds(bounds: LatLngBounds) {
         viewModelScope.launch {
             try {
@@ -105,7 +105,7 @@ class MapViewModel(
                 }
             } catch (e: Exception) {
                 _mapState.value = _mapState.value.copy(
-                    error = "Error loading chargers in bounds: ${e.message}",
+                    error = "Error loading chargers in bounds aa: ${e.message}",
                     isLoading = false
                 )
             }
@@ -151,9 +151,13 @@ class MapViewModel(
         }
     }
 
-    fun toggleFavorite(charger: Charger) {
+    fun toggleFavorite(charger: Charger, userId: String) {
         viewModelScope.launch {
-            chargerRepository.updateFavoriteStatus(charger.id, !charger.isFavorite)
+            if (charger.favoriteUsers.contains(userId)) {
+                chargerRepository.removeFavorite(userId, charger.id)
+            } else {
+                chargerRepository.addFavorite(userId, charger.id)
+            }
         }
     }
 }
