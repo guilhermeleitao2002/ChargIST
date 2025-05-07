@@ -1,16 +1,20 @@
 package pt.ist.cmu.chargist.data.repository
 
-
+import android.content.Context
+import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObject
-import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import pt.ist.cmu.chargist.data.model.User
 import pt.ist.cmu.chargist.util.NetworkResult
+
+/* ───────────────────  PUBLIC CONTRACT  ─────────────────── */
 
 interface AuthRepository {
     suspend fun signUp(username: String, email: String, pass: String): NetworkResult<User>
@@ -19,18 +23,23 @@ interface AuthRepository {
     fun currentUser(): Flow<User?>
 }
 
+/* ───────────────────  FIREBASE IMPLEMENTATION  ─────────────────── */
+
 class FirebaseAuthRepository(
+    private val context: Context,
     private val auth: FirebaseAuth,
     private val db: FirebaseFirestore
 ) : AuthRepository {
 
     private val users = db.collection("users")
 
+    /* ─────────────  LIVE AUTH‑STATE FLOW  ───────────── */
+
     override fun currentUser(): Flow<User?> = callbackFlow {
-        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            val firebaseUser = firebaseAuth.currentUser
-            if (firebaseUser == null) trySend(null) else {
-                users.document(firebaseUser.uid)
+        val listener = FirebaseAuth.AuthStateListener { fb ->
+            val u = fb.currentUser
+            if (u == null) trySend(null) else {
+                users.document(u.uid)
                     .addSnapshotListener { snap, _ ->
                         trySend(snap?.toObject<User>())
                     }
@@ -40,21 +49,52 @@ class FirebaseAuthRepository(
         awaitClose { auth.removeAuthStateListener(listener) }
     }
 
-    override suspend fun signUp(username: String, email: String, pass: String): NetworkResult<User> =
-        runCatching {
+    /* ─────────────  HELPERS  ───────────── */
+
+    private fun isPlayServicesAvailable(): Boolean =
+        GoogleApiAvailability.getInstance()
+            .isGooglePlayServicesAvailable(context) == CommonStatusCodes.SUCCESS
+
+    private fun playServicesError() =
+        NetworkResult.Error("Google Play Services is missing on this device.")
+
+    /** Map any Play‑Services security/api failure to a friendly error */
+    private fun Throwable.asNetworkError(): NetworkResult.Error = when (this) {
+        is ApiException,
+        is SecurityException -> playServicesError()
+        else                 -> NetworkResult.Error(message ?: "Operation failed")
+    }
+
+    /* ─────────────  SIGN‑UP  ───────────── */
+
+    override suspend fun signUp(username: String, email: String, pass: String)
+            : NetworkResult<User> {
+
+        if (!isPlayServicesAvailable()) return playServicesError()
+
+        return runCatching {
             auth.createUserWithEmailAndPassword(email, pass).await()
-            val uid = auth.currentUser!!.uid
+            val uid  = auth.currentUser!!.uid
             val user = User(id = uid, username = username)
             users.document(uid).set(user).await()
             NetworkResult.Success(user)
-        }.getOrElse { NetworkResult.Error(it.message ?: "Sign‑up failed") }
+        }.getOrElse { it.asNetworkError() }
+    }
 
-    override suspend fun login(email: String, pass: String): NetworkResult<User> =
-        runCatching {
+    /* ─────────────  LOG‑IN  ───────────── */
+
+    override suspend fun login(email: String, pass: String): NetworkResult<User> {
+
+        if (!isPlayServicesAvailable()) return playServicesError()
+
+        return runCatching {
             auth.signInWithEmailAndPassword(email, pass).await()
             val doc = users.document(auth.currentUser!!.uid).get().await()
             NetworkResult.Success(doc.toObject<User>()!!)
-        }.getOrElse { NetworkResult.Error(it.message ?: "Login failed") }
+        }.getOrElse { it.asNetworkError() }
+    }
+
+    /* ─────────────  LOG‑OUT  ───────────── */
 
     override suspend fun logout() { auth.signOut() }
 }

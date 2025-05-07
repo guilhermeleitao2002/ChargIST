@@ -21,13 +21,13 @@ data class PaymentSystem(
     val name: String
 )
 
-// User entity
-@Entity(tableName = "users")
-data class User(
-    @PrimaryKey val id: String,
-    val username: String,
-    val createdAt: Long = System.currentTimeMillis()
-)
+//// User entity
+//@Entity(tableName = "users")
+//data class User(
+//    @PrimaryKey val id: String,
+//    val username: String,
+//    val createdAt: Long = System.currentTimeMillis()
+//)
 
 // Charger entity
 @Entity(tableName = "chargers")

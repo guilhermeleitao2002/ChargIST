@@ -1,56 +1,56 @@
 package pt.ist.cmu.chargist.di
 
+/* Android / Kotlin */
 import android.content.Context
-import android.net.ConnectivityManager            // ⬅ add
+import android.net.ConnectivityManager
 import androidx.room.Room
+
+/* Google Play services & Firebase */
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+
+/* Networking */
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+
+/* Koin */
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+
+/* Data layer */
 import pt.ist.cmu.chargist.data.ChargISTDatabase
 import pt.ist.cmu.chargist.data.api.ChargISTApi
 import pt.ist.cmu.chargist.data.api.ChargISTApiService
-import pt.ist.cmu.chargist.data.repository.AuthRepository
-import pt.ist.cmu.chargist.data.repository.ChargerRepository
-import pt.ist.cmu.chargist.data.repository.ChargerRepositoryImpl
-import pt.ist.cmu.chargist.data.repository.FirebaseAuthRepository
-import pt.ist.cmu.chargist.data.repository.UserRepository
-import pt.ist.cmu.chargist.data.repository.UserRepositoryImpl
-import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
-import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
-import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import pt.ist.cmu.chargist.data.repository.*
+
+/* View‑models */
+import pt.ist.cmu.chargist.ui.viewmodel.*
+
 import java.util.concurrent.TimeUnit
 
-/* ─────────────────────────  APPLICATION‑WIDE BEANS  ───────────────────────── */
+/* ─────────────────────────  APP‑WIDE SINGLETONS ───────────────────────── */
 
 val appModule = module {
 
-    // SharedPreferences
     single {
         androidContext().getSharedPreferences("chargist_prefs", Context.MODE_PRIVATE)
     }
 
-    // Fused‑location provider
     single<FusedLocationProviderClient> {
         LocationServices.getFusedLocationProviderClient(androidContext())
     }
 
-    /* ✨ NEW — system ConnectivityManager (needed by ChargerRepositoryImpl) */
     single {
-        val ctx: Context = androidContext()
-        ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     }
-
 }
 
-/* ────────────────────────────────  ROOM  ─────────────────────────────────── */
+/* ───────────────────────────────  ROOM  ──────────────────────────────── */
 
 val dataModule = module {
 
@@ -62,16 +62,15 @@ val dataModule = module {
         ).build()
     }
 
-    // DAOs
+    /* DAOs – repositories need them */
     single { get<ChargISTDatabase>().chargerDao() }
     single { get<ChargISTDatabase>().userDao() }
 
-    // Repositories
     single<ChargerRepository> { ChargerRepositoryImpl(get(), get(), get()) }
     single<UserRepository>    { UserRepositoryImpl(get(), get()) }
 }
 
-/* ─────────────────────────────  NETWORK  ─────────────────────────────────── */
+/* ─────────────────────────────  NETWORK  ─────────────────────────────── */
 
 val networkModule = module {
 
@@ -99,27 +98,36 @@ val networkModule = module {
     single { ChargISTApi(get()) }
 }
 
-/* ─────────────────────────────  VIEWMODELS  ──────────────────────────────── */
+/* ────────────────────────  FIREBASE AUTH / DB  ──────────────────────── */
+
+val firebaseModule = module {
+
+    single { FirebaseAuth.getInstance() }
+    single { FirebaseFirestore.getInstance() }
+
+    single<AuthRepository> {
+        FirebaseAuthRepository(
+            androidContext(),  // pass Context directly
+            get(),             // FirebaseAuth
+            get()              // FirebaseFirestore
+        )
+    }
+}
+
+/* ─────────────────────────────  VIEW‑MODELS  ─────────────────────────── */
 
 val viewModelModule = module {
 
     viewModel { UserViewModel(get()) }
 
-    /**
-     * MapViewModel needs:
-     *   1) ChargerRepository  → get()
-     *   2) FusedLocationProviderClient → get()
-     *   3) Context → get()  (because we exposed it above)
-     */
-    viewModel { MapViewModel(get(), get(), get()) }
+    /** Map screen VM */
+    viewModel {
+        MapViewModel(
+            get(),                 // ChargerRepository
+            get(),                 // FusedLocationProviderClient
+            androidContext()       // ← Context injected without a bean
+        )
+    }
 
     viewModel { ChargerViewModel(get(), get()) }
-}
-
-
-val firebaseModule = module {
-    single { FirebaseAuth.getInstance() }
-    single { FirebaseFirestore.getInstance() }
-
-    single<AuthRepository> { FirebaseAuthRepository(get(), get()) }
 }
