@@ -62,7 +62,7 @@ val dataModule = module {
     }
 
     // DAOs (leave or remove – not referenced by the Firestore repo)
-    single { get<ChargISTDatabase>().userDao() }
+//    single { get<ChargISTDatabase>().userDao() }
 
     // User repo still backed by Room
     //single<UserRepository> { UserRepositoryImpl(get(), get()) }
