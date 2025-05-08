@@ -123,6 +123,8 @@ fun HomeScreen(
                 durationMs = 750
             )
             mapViewModel.markFocusConsumed()
+            mapViewModel.loadChargers()
+
         }
     }
 
@@ -204,13 +206,7 @@ fun HomeScreen(
                     isMyLocationEnabled = mapState.hasLocationPermission   // ← key line
                 ),
                 uiSettings = mapUiSettings,
-                onMapLoaded = {
-                    // When map is loaded, get chargers in current visible area
-                    val bounds = cameraPositionState.projection?.visibleRegion?.latLngBounds
-                    if (bounds != null) {
-                        mapViewModel.loadChargersInBounds(bounds)
-                    }
-                }
+
             ) {
                 // Display all chargers on the map
                 mapState.chargers.forEach { charger ->

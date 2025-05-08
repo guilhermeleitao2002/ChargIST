@@ -74,7 +74,7 @@ class MapViewModel(
         }
     }
 
-    private fun loadChargers() {
+    internal fun loadChargers() {
         viewModelScope.launch {
             try {
                 chargerRepository.getAllChargers().collectLatest { chargers ->
