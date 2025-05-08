@@ -54,8 +54,10 @@ android {
 
 dependencies {
 
-    //firebase
+    // Places for Google Maps
+    implementation("com.google.android.libraries.places:places:3.3.0")
 
+    // Firebase
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-storage-ktx:20.3.0")
     implementation(platform("com.google.firebase:firebase-bom:33.1.0"))

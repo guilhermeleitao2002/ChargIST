@@ -36,16 +36,23 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material.icons.filled.LocationOn
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.Charger
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import android.Manifest
-import androidx.activity.compose.rememberLauncherForActivityResult
+import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.rememberCoroutineScope
+import com.google.android.libraries.places.api.Places
 import com.google.firebase.auth.FirebaseAuth
+import pt.ist.cmu.chargist.util.PlaceSearch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,6 +64,8 @@ fun HomeScreen(
     onProfileClick: () -> Unit,
     viewModel: MapViewModel = koinViewModel()
 ) {
+    var showManualSearchDialog by remember { mutableStateOf(false) }
+
     /* ── 1. Ask for ACCESS_FINE_LOCATION once ─────────────────────── */
     val permissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -65,6 +74,16 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    // Register the place search launcher
+    val searchAddressLauncher = rememberLauncherForActivityResult(
+        contract = PlaceSearch()
+    ) { latLng ->
+        latLng?.let {
+            // Move camera to the selected location
+            viewModel.setLocationAndMoveCameraManually(it)
+        }
     }
 
     val mapState by viewModel.mapState.collectAsState()
@@ -78,7 +97,6 @@ fun HomeScreen(
             viewModel.loadFavoriteChargers2(userId)
         }
     }
-
 
     // Initial position - IST Campus (Alameda)
     var defaultLocation by remember {
@@ -114,6 +132,22 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("ChargIST") },
                 actions = {
+                    IconButton(
+                        onClick = {
+                            try {
+                                searchAddressLauncher.launch(Unit)
+                            } catch (e: Exception) {
+                                Log.e("HomeScreen", "Error launching Places: ${e.message}")
+                                // Show our fallback dialog instead
+                                showManualSearchDialog = true
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = "Search Address"
+                        )
+                    }
                     IconButton(onClick = onSearchClick) {
                         Icon(
                             imageVector = Icons.Default.Search,
@@ -200,6 +234,40 @@ fun HomeScreen(
                         modifier = Modifier.padding(8.dp)
                     )
                 }
+            }
+
+            if (showManualSearchDialog) {
+                var addressInput by remember { mutableStateOf("") }
+
+                AlertDialog(
+                    onDismissRequest = { showManualSearchDialog = false },
+                    title = { Text("Search Address") },
+                    text = {
+                        OutlinedTextField(
+                            value = addressInput,
+                            onValueChange = { addressInput = it },
+                            label = { Text("Enter address") },
+                            singleLine = true
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (addressInput.isNotBlank()) {
+                                    viewModel.searchAddressUsingGeocoder(addressInput)
+                                }
+                                showManualSearchDialog = false
+                            }
+                        ) {
+                            Text("Search")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showManualSearchDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
         }
     }

@@ -36,12 +36,3 @@ fun ChargISTApp() {
         ChargISTNavigation()          // ← this is the only change
     }
 }
-
-// For testing purposes only
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
