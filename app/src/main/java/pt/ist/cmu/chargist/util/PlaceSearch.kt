@@ -18,9 +18,8 @@ class PlaceSearch : ActivityResultContract<Unit, LatLng?>() {
         try {
             // Verify Places API is initialized
             if (!Places.isInitialized()) {
-                Log.e("PlaceSearch", "Places API is not initialized!")
-                Places.initialize(context.applicationContext,
-                    "AIzaSyD8UGEnWmk0Tkt9TGA25e0Uod2QN56r_mo")
+                Log.e("PlaceSearch", "Places API is not initialized! Falling back to manual search.")
+                throw IllegalStateException("Places API not initialized")
             }
 
             // Define the place fields to return
@@ -38,10 +37,9 @@ class PlaceSearch : ActivityResultContract<Unit, LatLng?>() {
                 .build(context)
         } catch (e: Exception) {
             Log.e("PlaceSearch", "Error creating intent: ${e.message}", e)
-            // Return a dummy intent as fallback
-            return Intent().apply {
-                putExtra("error", e.message)
-            }
+            // Instead of returning a dummy intent, throw the exception
+            // so the calling code can handle it properly
+            throw e
         }
     }
 
