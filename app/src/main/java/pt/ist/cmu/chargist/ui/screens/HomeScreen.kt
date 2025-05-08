@@ -198,15 +198,7 @@ fun HomeScreen(
                     if (bounds != null) {
                         viewModel.loadChargersInBounds(bounds)
                     }
-                }/*,
-                onCameraMoveStarted = { },
-                onCameraIdle = {
-                    // When camera stops moving, load chargers in the new visible area
-                    val bounds = cameraPositionState.projection?.visibleRegion?.latLngBounds
-                    if (bounds != null) {
-                        viewModel.loadChargersInBounds(bounds)
-                    }
-                }*/
+                }
             ) {
                 // Display all chargers on the map
                 mapState.chargers.forEach { charger ->

@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -193,7 +192,10 @@ fun AddChargerScreen(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
                     properties = MapProperties(isMyLocationEnabled = true),
-                    uiSettings = MapUiSettings(zoomControlsEnabled = false),
+                    uiSettings = MapUiSettings(
+                        zoomControlsEnabled = false,
+                        compassEnabled = false
+                    ),
                     onMapClick = { latLng ->
                         selectedLocation = latLng
                         chargerViewModel.updateChargerCreationLocation(latLng)
@@ -223,29 +225,6 @@ fun AddChargerScreen(
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = null
-                    )
-                }
-
-                // Current location button
-                IconButton(
-                    onClick = {
-                        mapState.currentLocation?.let {
-                            selectedLocation = it
-                            chargerViewModel.updateChargerCreationLocation(it)
-                            cameraPositionState.position = CameraPosition.fromLatLngZoom(it, 15f)
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = "Use Current Location"
                     )
                 }
             }
