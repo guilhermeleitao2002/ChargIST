@@ -47,10 +47,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.rememberCoroutineScope
-import com.google.android.libraries.places.api.Places
 import com.google.firebase.auth.FirebaseAuth
 import pt.ist.cmu.chargist.util.PlaceSearch
 
@@ -87,8 +84,6 @@ fun HomeScreen(
     }
 
     val mapState by viewModel.mapState.collectAsState()
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     val userId = FirebaseAuth.getInstance().currentUser?.uid
 
@@ -118,12 +113,6 @@ fun HomeScreen(
         MapUiSettings(
             zoomControlsEnabled = false,
             myLocationButtonEnabled = true
-        )
-    }
-
-    val mapProperties = remember {
-        MapProperties(
-            isMyLocationEnabled = true
         )
     }
 
