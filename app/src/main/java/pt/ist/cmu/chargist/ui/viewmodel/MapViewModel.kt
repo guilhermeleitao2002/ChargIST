@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,8 +18,10 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
@@ -35,11 +38,10 @@ data class MapState(
     val chargers: List<Charger> = emptyList(),
     val favoriteChargers: List<Charger> = emptyList(),
     val currentLocation: LatLng? = null,
-    val hasLocationPermission: Boolean = false,        // ← NEW
+    val hasLocationPermission: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null
 )
-
 
 class MapViewModel(
     private val chargerRepository: ChargerRepository,
@@ -49,12 +51,11 @@ class MapViewModel(
     private val _mapState = MutableStateFlow(MapState(isLoading = true))
     val mapState: StateFlow<MapState> = _mapState.asStateFlow()
 
+    private val _focusRequests = MutableSharedFlow<LatLng>(replay = 1, extraBufferCapacity = 1)
+    val focusRequests = _focusRequests.asSharedFlow()
+
     init {
         loadChargers()
-        //loadFavoriteChargers()
-        //viewModelScope.launch {
-        //    getCurrentLocation()
-        //}
     }
 
     fun loadFavoriteChargers2(userId: String) {
@@ -98,7 +99,6 @@ class MapViewModel(
         }
     }
 
-
     fun loadChargersInBounds(bounds: LatLngBounds) {
         viewModelScope.launch {
             try {
@@ -130,7 +130,6 @@ class MapViewModel(
 
     private suspend fun getLastLocationSuspend(): Location = suspendCoroutine { continuation ->
         try {
-            // Check for permission first
             if (ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.ACCESS_FINE_LOCATION
@@ -181,13 +180,10 @@ class MapViewModel(
                 val geocoder = Geocoder(context, Locale.getDefault())
                 var addressList: List<Address>? = null
 
-                // Handle API differences between Android versions
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     geocoder.getFromLocationName(query, 1) { addresses ->
                         addressList = addresses
                     }
-
-                    // Wait a moment for the result
                     delay(1000)
                 } else {
                     @Suppress("DEPRECATION")
@@ -220,5 +216,13 @@ class MapViewModel(
                 }
             }
         }
+    }
+
+    fun focusOn(target: LatLng) {
+        _focusRequests.tryEmit(target)
+    }
+
+    fun markFocusConsumed() {
+        _focusRequests.resetReplayCache()
     }
 }
