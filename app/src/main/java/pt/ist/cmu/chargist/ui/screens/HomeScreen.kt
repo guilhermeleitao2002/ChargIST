@@ -47,7 +47,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.libraries.places.api.Places
 import com.google.firebase.auth.FirebaseAuth
 import pt.ist.cmu.chargist.util.PlaceSearch
 
@@ -59,14 +63,15 @@ fun HomeScreen(
     onAddChargerClick: () -> Unit,
     onSearchClick: () -> Unit,
     onProfileClick: () -> Unit,
-    viewModel: MapViewModel = koinViewModel()
+    //viewModel: MapViewModel = koinViewModel(),
+    mapViewModel: MapViewModel
 ) {
     var showManualSearchDialog by remember { mutableStateOf(false) }
 
     /* ── 1. Ask for ACCESS_FINE_LOCATION once ─────────────────────── */
     val permissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) viewModel.onLocationPermissionGranted()
+            if (granted) mapViewModel.onLocationPermissionGranted()
         }
 
     LaunchedEffect(Unit) {
@@ -79,17 +84,19 @@ fun HomeScreen(
     ) { latLng ->
         latLng?.let {
             // Move camera to the selected location
-            viewModel.setLocationAndMoveCameraManually(it)
+            mapViewModel.setLocationAndMoveCameraManually(it)
         }
     }
 
-    val mapState by viewModel.mapState.collectAsState()
+    val mapState by mapViewModel.mapState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val userId = FirebaseAuth.getInstance().currentUser?.uid
 
     LaunchedEffect(userId) {
         if (userId != null) {
-            viewModel.loadFavoriteChargers2(userId)
+            mapViewModel.loadFavoriteChargers2(userId)
         }
     }
 
@@ -109,10 +116,28 @@ fun HomeScreen(
         position = CameraPosition.fromLatLngZoom(defaultLocation, 15f)
     }
 
+    LaunchedEffect(Unit) {
+        mapViewModel.focusRequests.collect { target ->
+            cameraPositionState.animate(
+                update = CameraUpdateFactory.newLatLngZoom(target, 17f),
+                durationMs = 750
+            )
+            mapViewModel.markFocusConsumed()
+            mapViewModel.loadChargers()
+
+        }
+    }
+
     val mapUiSettings = remember {
         MapUiSettings(
             zoomControlsEnabled = false,
             myLocationButtonEnabled = true
+        )
+    }
+
+    val mapProperties = remember {
+        MapProperties(
+            isMyLocationEnabled = true
         )
     }
 
@@ -181,13 +206,7 @@ fun HomeScreen(
                     isMyLocationEnabled = mapState.hasLocationPermission   // ← key line
                 ),
                 uiSettings = mapUiSettings,
-                onMapLoaded = {
-                    // When map is loaded, get chargers in current visible area
-                    val bounds = cameraPositionState.projection?.visibleRegion?.latLngBounds
-                    if (bounds != null) {
-                        viewModel.loadChargersInBounds(bounds)
-                    }
-                }
+
             ) {
                 // Display all chargers on the map
                 mapState.chargers.forEach { charger ->
@@ -235,7 +254,7 @@ fun HomeScreen(
                         Button(
                             onClick = {
                                 if (addressInput.isNotBlank()) {
-                                    viewModel.searchAddressUsingGeocoder(addressInput)
+                                    mapViewModel.searchAddressUsingGeocoder(addressInput)
                                 }
                                 showManualSearchDialog = false
                             }
@@ -253,6 +272,8 @@ fun HomeScreen(
         }
     }
 }
+
+
 
 @Composable
 fun ChargerMarker(

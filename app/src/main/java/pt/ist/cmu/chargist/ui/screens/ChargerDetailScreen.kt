@@ -32,23 +32,29 @@ import com.google.maps.android.compose.*
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.ChargingSlot
 import pt.ist.cmu.chargist.data.model.ChargingSpeed
-import pt.ist.cmu.chargist.data.repository.ImageCodec   // ← helper to decode Base‑64
+import pt.ist.cmu.chargist.data.repository.ImageCodec
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
+import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChargerDetailScreen(
     chargerId: String,
     onBackClick: () -> Unit,
+    onGoToMap: () -> Unit,
     onSlotClick: (String) -> Unit,
-    viewModel: ChargerViewModel = koinViewModel()
-) {
-    LaunchedEffect(chargerId) { viewModel.loadChargerDetails(chargerId) }
+    //viewModel: ChargerViewModel = koinViewModel(),
+    chargerViewModel: ChargerViewModel = koinViewModel(),
+    mapViewModel: MapViewModel
 
-    val detailState by viewModel.chargerDetailState.collectAsState()
+) {
+    LaunchedEffect(chargerId) { chargerViewModel.loadChargerDetails(chargerId) }
+
+    val detailState by chargerViewModel.chargerDetailState.collectAsState()
     val chargerWithDetails = detailState.chargerWithDetails
     val userId = FirebaseAuth.getInstance().currentUser?.uid
-
 
     Scaffold(
         topBar = {
@@ -62,7 +68,7 @@ fun ChargerDetailScreen(
                 actions = {
                     if (userId != null && chargerWithDetails != null) {
                         val isFavorite = chargerWithDetails.charger.favoriteUsers.contains(userId) ?: false
-                        IconButton(onClick = { viewModel.toggleFavorite(userId) }) {
+                        IconButton(onClick = { chargerViewModel.toggleFavorite(userId) }) {
                             Icon(
                                 if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                 contentDescription = if (isFavorite) "Remove from favourites" else "Add to favourites"
@@ -77,10 +83,28 @@ fun ChargerDetailScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { /* open external navigation here */ },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) { Icon(Icons.Filled.PlayArrow, null, tint = Color.White) }
+            val mapVM: MapViewModel = koinViewModel()
+            val scope = rememberCoroutineScope()
+            if (chargerWithDetails != null) {
+                FloatingActionButton(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    onClick = {
+                        mapViewModel.focusOn(
+                            LatLng(
+                                chargerWithDetails.charger.latitude,
+                                chargerWithDetails.charger.longitude
+                            )
+                        )
+                        onGoToMap()            // <- just pop, no coroutine / delay needed
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Take me there",
+                        tint = Color.White
+                    )
+                }
+            }
         }
     ) { innerPad ->
         when {
@@ -94,7 +118,6 @@ fun ChargerDetailScreen(
                         .fillMaxSize()
                         .padding(innerPad)
                 ) {
-                    /* ───── image + mini‑map ───── */
                     item {
                         val photoData = chargerWithDetails.charger.imageData
                         if (photoData != null) {
@@ -146,7 +169,6 @@ fun ChargerDetailScreen(
                         ) { Marker(MarkerState(loc), title = chargerWithDetails.charger.name) }
                     }
 
-                    /* ───── charging slots ───── */
                     sectionHeader("Charging Slots")
                     if (chargerWithDetails.chargingSlots.isEmpty()) {
                         item { EmptyLine("No charging slots available") }
@@ -156,7 +178,6 @@ fun ChargerDetailScreen(
                         }
                     }
 
-                    /* ───── payment systems ───── */
                     sectionHeader("Payment Methods")
                     if (chargerWithDetails.paymentSystems.isEmpty()) {
                         item { EmptyLine("No payment information available") }
@@ -176,8 +197,6 @@ fun ChargerDetailScreen(
         }
     }
 }
-
-/* ---------- helpers & smaller composables ---------- */
 
 @Composable
 private fun CenterBox(pad: PaddingValues, content: @Composable BoxScope.() -> Unit) {
@@ -201,8 +220,6 @@ private fun EmptyLine(text: String) =
     Text(text, style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.padding(horizontal = 16.dp))
 
-/* ---------- slot card (unchanged) ---------- */
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChargingSlotItem(slot: ChargingSlot, onClick: () -> Unit) {
@@ -220,7 +237,6 @@ fun ChargingSlotItem(slot: ChargingSlot, onClick: () -> Unit) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            /* speed badge */
             Box(
                 modifier = Modifier
                     .size(40.dp)

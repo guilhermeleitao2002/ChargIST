@@ -1,4 +1,3 @@
-/*  ui/navigation/Navigation.kt  */
 package pt.ist.cmu.chargist.ui.navigation
 
 import androidx.compose.runtime.Composable
@@ -8,7 +7,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.ui.screens.*
+import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 
 /* ------------------------------------------------------------------------- */
 /*  Route helpers – keep every navigation string in one place                */
@@ -33,6 +34,7 @@ fun ChargISTNavigation() {
 
     val nav       = rememberNavController()
     val goHome    = remember { { nav.popBackStack(Route.HOME, false) } }
+    val mapVM: MapViewModel = koinViewModel()
 
     NavHost(
         navController    = nav,
@@ -45,7 +47,8 @@ fun ChargISTNavigation() {
                 onChargerClick    = { id -> nav.navigate(Route.charger(id)) },
                 onAddChargerClick = { nav.navigate(Route.ADD_CHARGER)      },
                 onSearchClick     = { nav.navigate(Route.SEARCH)           },
-                onProfileClick    = { nav.navigate(Route.PROFILE)          }
+                onProfileClick    = { nav.navigate(Route.PROFILE)          },
+                mapViewModel      = mapVM
             )
         }
 
@@ -79,7 +82,10 @@ fun ChargISTNavigation() {
             ChargerDetailScreen(
                 chargerId   = id,
                 onBackClick = { nav.popBackStack() },
-                onSlotClick = { slotId -> nav.navigate(Route.slot(slotId)) }
+                onGoToMap   = { nav.popBackStack(Route.HOME, false) }, // Added for "Take me there"
+                onSlotClick = { slotId -> nav.navigate(Route.slot(slotId)) },
+                chargerViewModel = koinViewModel(), // your charger‐details VM
+                mapViewModel     = mapVM
             )
         }
 
