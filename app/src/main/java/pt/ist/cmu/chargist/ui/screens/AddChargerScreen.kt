@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -65,6 +66,7 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
+import pt.ist.cmu.chargist.util.PlaceSearch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +103,16 @@ fun AddChargerScreen(
             uri?.let { chargerViewModel.updateChargerCreationImage(it) }
         }
     )
+
+    val searchAddressLauncher = rememberLauncherForActivityResult(
+        contract = PlaceSearch()
+    ) { latLng ->
+        latLng?.let {
+            selectedLocation = it
+            chargerViewModel.updateChargerCreationLocation(it)
+            cameraPositionState.position = CameraPosition.fromLatLngZoom(it, 15f)
+        }
+    }
 
     // Check for success and navigate back
     LaunchedEffect(chargerCreationState.isSuccess) {
@@ -194,6 +206,24 @@ fun AddChargerScreen(
                             title = "Selected Location"
                         )
                     }
+                }
+
+                IconButton(
+                    onClick = {
+                        searchAddressLauncher.launch(Unit)
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null
+                    )
                 }
 
                 // Current location button
