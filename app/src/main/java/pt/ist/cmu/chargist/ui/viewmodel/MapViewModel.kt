@@ -225,4 +225,8 @@ class MapViewModel(
     fun markFocusConsumed() {
         _focusRequests.resetReplayCache()
     }
+
+    fun updateError(error: String) {
+        _mapState.value = _mapState.value.copy(error = error, isLoading = false)
+    }
 }

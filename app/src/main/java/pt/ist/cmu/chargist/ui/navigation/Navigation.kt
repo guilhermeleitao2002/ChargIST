@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.ui.screens.*
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
+import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
 
 /* ------------------------------------------------------------------------- */
 /*  Route helpers – keep every navigation string in one place                */
@@ -35,6 +36,7 @@ fun ChargISTNavigation() {
     val nav       = rememberNavController()
     val goHome    = remember { { nav.popBackStack(Route.HOME, false) } }
     val mapVM: MapViewModel = koinViewModel()
+    val userVM: UserViewModel = koinViewModel()
 
     NavHost(
         navController    = nav,
@@ -48,7 +50,8 @@ fun ChargISTNavigation() {
                 onAddChargerClick = { nav.navigate(Route.ADD_CHARGER)      },
                 onSearchClick     = { nav.navigate(Route.SEARCH)           },
                 onProfileClick    = { nav.navigate(Route.PROFILE)          },
-                mapViewModel      = mapVM
+                mapViewModel      = mapVM,
+                userViewModel     = userVM
             )
         }
 

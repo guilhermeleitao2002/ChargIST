@@ -53,6 +53,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.libraries.places.api.Places
 import com.google.firebase.auth.FirebaseAuth
+import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
 import pt.ist.cmu.chargist.util.PlaceSearch
 
 
@@ -64,7 +65,8 @@ fun HomeScreen(
     onSearchClick: () -> Unit,
     onProfileClick: () -> Unit,
     //viewModel: MapViewModel = koinViewModel(),
-    mapViewModel: MapViewModel
+    mapViewModel: MapViewModel,
+    userViewModel: UserViewModel
 ) {
     var showManualSearchDialog by remember { mutableStateOf(false) }
 
@@ -92,11 +94,18 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val userId = FirebaseAuth.getInstance().currentUser?.uid
+    val userState by userViewModel.userState.collectAsState()
 
-    LaunchedEffect(userId) {
-        if (userId != null) {
-            mapViewModel.loadFavoriteChargers2(userId)
+    LaunchedEffect(userState.user) {
+        try {
+            val userId = userState.user?.id
+            if (userId != null) {
+                mapViewModel.loadFavoriteChargers2(userId)
+            } else if (mapState.chargers.isEmpty()) {
+                mapViewModel.loadChargers()
+            }
+        } catch (e: Exception) {
+            mapViewModel.updateError("Failed to load chargers: ${e.message}")
         }
     }
 
@@ -210,7 +219,7 @@ fun HomeScreen(
             ) {
                 // Display all chargers on the map
                 mapState.chargers.forEach { charger ->
-                    val isFavorite = mapState.favoriteChargers.any { it.id == charger.id }
+                    val isFavorite = userState.user?.id?.let { charger.favoriteUsers.contains(it) } ?: false
                     ChargerMarker(
                         charger = charger,
                         isFavorite = isFavorite,
