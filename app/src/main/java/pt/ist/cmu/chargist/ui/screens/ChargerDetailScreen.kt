@@ -45,7 +45,6 @@ fun ChargerDetailScreen(
     chargerId: String,
     onBackClick: () -> Unit,
     onGoToMap: () -> Unit,
-    onSlotClick: (String) -> Unit,
     onViewAllSlotsClick: (String) -> Unit,
     chargerViewModel: ChargerViewModel = koinViewModel(),
     mapViewModel: MapViewModel
@@ -68,7 +67,7 @@ fun ChargerDetailScreen(
                 },
                 actions = {
                     if (userId != null && chargerWithDetails != null) {
-                        val isFavorite = chargerWithDetails.charger.favoriteUsers.contains(userId) ?: false
+                        val isFavorite = chargerWithDetails.charger.favoriteUsers.contains(userId)
                         IconButton(onClick = { chargerViewModel.toggleFavorite(userId) }) {
                             Icon(
                                 if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -84,8 +83,6 @@ fun ChargerDetailScreen(
             )
         },
         floatingActionButton = {
-            val mapVM: MapViewModel = koinViewModel()
-            val scope = rememberCoroutineScope()
             if (chargerWithDetails != null) {
                 FloatingActionButton(
                     containerColor = MaterialTheme.colorScheme.primary,

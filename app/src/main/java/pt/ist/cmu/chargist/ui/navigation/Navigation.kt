@@ -88,7 +88,6 @@ fun ChargISTNavigation() {
                 chargerId = id,
                 onBackClick = { nav.popBackStack() },
                 onGoToMap = { nav.popBackStack(Route.HOME, false) },
-                onSlotClick = { slotId -> nav.navigate(Route.slot(slotId)) },
                 onViewAllSlotsClick = { charId -> nav.navigate(Route.chargingSlots(charId)) },
                 chargerViewModel = koinViewModel(),
                 mapViewModel = mapVM
