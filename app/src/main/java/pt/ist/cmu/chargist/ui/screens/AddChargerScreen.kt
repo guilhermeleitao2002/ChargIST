@@ -314,8 +314,8 @@ fun AddChargerScreen(
                 title = "Medium Charging",
                 count = mediumPositions,
                 onCountChange = {
-                    fastPositions = it
-                    chargerViewModel.updateFastPositions(it)
+                    mediumPositions = it
+                    chargerViewModel.updateMediumPositions(it)
                 }
             )
 
@@ -326,8 +326,8 @@ fun AddChargerScreen(
                 title = "Slow Charging",
                 count = slowPositions,
                 onCountChange = {
-                    fastPositions = it
-                    chargerViewModel.updateFastPositions(it)
+                    slowPositions = it
+                    chargerViewModel.updateSlowPositions(it)
                 }
             )
 
