@@ -2,6 +2,7 @@ package pt.ist.cmu.chargist.data.model
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Ignore
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
 import com.google.android.gms.maps.model.LatLng
@@ -35,7 +36,11 @@ data class Charger(
     val favoriteUsers: List<String> = emptyList(),
     val createdBy: String = "",
     val createdAt: Long = 0L,
-    val updatedAt: Long? = 0L
+    val updatedAt: Long? = 0L,
+
+    // Add a field for direct slot storage
+//    @Ignore // This field won't be stored in Room, only in Firestore
+    val chargingSlots: List<ChargingSlot> = emptyList()
 ) {
     fun getLatLng(): LatLng = LatLng(latitude, longitude)
 }

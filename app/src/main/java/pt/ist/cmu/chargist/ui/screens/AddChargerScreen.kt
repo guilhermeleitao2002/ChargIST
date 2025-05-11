@@ -301,7 +301,10 @@ fun AddChargerScreen(
             ChargingPositionSelector(
                 title = "Fast Charging",
                 count = fastPositions,
-                onCountChange = { fastPositions = it }
+                onCountChange = {
+                    fastPositions = it
+                    chargerViewModel.updateFastPositions(it)
+                }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -310,7 +313,10 @@ fun AddChargerScreen(
             ChargingPositionSelector(
                 title = "Medium Charging",
                 count = mediumPositions,
-                onCountChange = { mediumPositions = it }
+                onCountChange = {
+                    fastPositions = it
+                    chargerViewModel.updateFastPositions(it)
+                }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -319,7 +325,10 @@ fun AddChargerScreen(
             ChargingPositionSelector(
                 title = "Slow Charging",
                 count = slowPositions,
-                onCountChange = { slowPositions = it }
+                onCountChange = {
+                    fastPositions = it
+                    chargerViewModel.updateFastPositions(it)
+                }
             )
 
             Spacer(modifier = Modifier.height(32.dp))

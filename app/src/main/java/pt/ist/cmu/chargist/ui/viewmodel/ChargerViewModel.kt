@@ -26,6 +26,9 @@ data class ChargerCreationState(
     val name: String = "",
     val location: LatLng? = null,
     val imageUri: Uri? = null,
+    val fastPositions: Int = 0,
+    val mediumPositions: Int = 0,
+    val slowPositions: Int = 0,
     val isSubmitting: Boolean = false,
     val error: String? = null,
     val isSuccess: Boolean = false
@@ -91,8 +94,6 @@ class ChargerViewModel(
     fun resetChargerCreation()                               { _create.value = ChargerCreationState() }
 
     /* ---------- create charger ---------- */
-
-    /* ---------- create charger ---------- */
     fun createCharger() = viewModelScope.launch {
         var s = _create.value
 
@@ -103,7 +104,6 @@ class ChargerViewModel(
         _create.value = s.copy(isSubmitting = true, error = null)
 
         /* 2 · who is the current user?  -------------------------------------- */
-        // 1st choice: the profile row (if you still keep usernames)
         val user = authRepository.currentUser().first()
         if (user == null) {
             _create.value = s.copy(
@@ -113,7 +113,6 @@ class ChargerViewModel(
             return@launch
         }
         val uid = user.id
-
 
         /* 3 · deterministic id for the document & picture -------------------- */
         val chargerId = UUID.randomUUID().toString()
@@ -127,17 +126,65 @@ class ChargerViewModel(
             return@launch
         }
 
-        /* 5 · write to Firestore --------------------------------------------- */
+        /* 5 · create charging slots ------------------------------------------ */
+        val slots = mutableListOf<ChargingSlot>()
+
+        // Add fast charging slots
+        for (i in 1..s.fastPositions) {
+            val slotId = "${chargerId}_fast_$i"
+            slots.add(ChargingSlot(
+                id = slotId,
+                chargerId = chargerId,
+                speed = ChargingSpeed.FAST,
+                connectorType = ConnectorType.CCS2,
+                price = 0.50,
+                isAvailable = true,
+                isDamaged = false,
+                updatedAt = System.currentTimeMillis()
+            ))
+        }
+
+        // Add medium charging slots
+        for (i in 1..s.mediumPositions) {
+            val slotId = "${chargerId}_medium_$i"
+            slots.add(ChargingSlot(
+                id = slotId,
+                chargerId = chargerId,
+                speed = ChargingSpeed.MEDIUM,
+                connectorType = ConnectorType.CCS2,
+                price = 0.35,
+                isAvailable = true,
+                isDamaged = false,
+                updatedAt = System.currentTimeMillis()
+            ))
+        }
+
+        // Add slow charging slots
+        for (i in 1..s.slowPositions) {
+            val slotId = "${chargerId}_slow_$i"
+            slots.add(ChargingSlot(
+                id = slotId,
+                chargerId = chargerId,
+                speed = ChargingSpeed.SLOW,
+                connectorType = ConnectorType.TYPE2,
+                price = 0.25,
+                isAvailable = true,
+                isDamaged = false,
+                updatedAt = System.currentTimeMillis()
+            ))
+        }
+
+        /* 6 · write to Firestore --------------------------------------------- */
         when (val res = chargerRepository.createCharger(
-            name      = s.name,
-            location  = s.location!!,
+            name = s.name,
+            location = s.location!!,
             imageData = base64,
-            userId    = uid
+            userId = uid,
+            chargingSlots = slots
         )) {
             is NetworkResult.Success -> _create.value = ChargerCreationState(isSuccess = true)
-            is NetworkResult.Error   -> _create.value = s.copy(isSubmitting = false,
-                error = res.message)
-            else -> {}   // Loading is impossible here – createCharger() is suspending
+            is NetworkResult.Error -> _create.value = s.copy(isSubmitting = false, error = res.message)
+            else -> {}
         }
     }
 
@@ -172,6 +219,9 @@ class ChargerViewModel(
     }
 
     /* ---------- slots shortcuts ---------- */
+    fun updateFastPositions(count: Int) { _create.update { it.copy(fastPositions = count) } }
+    fun updateMediumPositions(count: Int) { _create.update { it.copy(mediumPositions = count) } }
+    fun updateSlowPositions(count: Int) { _create.update { it.copy(slowPositions = count) } }
 
     fun addChargingSlot(chargerId: String, speed: ChargingSpeed, connector: ConnectorType, price: Double) =
         viewModelScope.launch {

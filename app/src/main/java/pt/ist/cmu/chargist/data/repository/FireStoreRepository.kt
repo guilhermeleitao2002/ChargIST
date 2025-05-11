@@ -67,23 +67,32 @@ class FirestoreChargerRepository(
         location: LatLng,
         imageData: String?,
         userId: String,
+        chargingSlots: List<ChargingSlot>
     ): NetworkResult<Charger> {
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         val charger = Charger(
-            id          = id,
-            name        = name,
-            latitude    = location.latitude,
-            longitude   = location.longitude,
-            imageData   = imageData,
-            createdBy   = userId,
-            createdAt   = now,
-            updatedAt   = now,
-            favoriteUsers = emptyList()
+            id = id,
+            name = name,
+            latitude = location.latitude,
+            longitude = location.longitude,
+            imageData = imageData,
+            createdBy = userId,
+            createdAt = now,
+            updatedAt = now,
+            favoriteUsers = emptyList(),
+            chargingSlots = chargingSlots
         )
 
         return runCatching {
+            // Create the charger document
             chargerDoc(id).set(charger).await()
+
+            // Create individual slot documents in the subcollection
+            for (slot in chargingSlots) {
+                slotsCol(id).document(slot.id).set(slot).await()
+            }
+
             NetworkResult.Success(charger)
         }.getOrElse { NetworkResult.Error(it.message ?: "Create failed") }
     }

@@ -3,6 +3,7 @@ package pt.ist.cmu.chargist.util
 import androidx.room.TypeConverter
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import pt.ist.cmu.chargist.data.model.ChargingSlot
 import pt.ist.cmu.chargist.data.model.ChargingSpeed
 import pt.ist.cmu.chargist.data.model.ConnectorType
 import pt.ist.cmu.chargist.data.model.PaymentSystem
@@ -72,5 +73,16 @@ class Converters {
     @TypeConverter
     fun toTimestamp(value: Long?): com.google.firebase.Timestamp? {
         return value?.let { com.google.firebase.Timestamp(it / 1000, ((it % 1000) * 1000000).toInt()) }
+    }
+
+    @TypeConverter
+    fun fromChargingSlotList(value: List<ChargingSlot>): String {
+        return gson.toJson(value)
+    }
+
+    @TypeConverter
+    fun toChargingSlotList(value: String): List<ChargingSlot> {
+        val listType = object : TypeToken<List<ChargingSlot>>() {}.type
+        return gson.fromJson(value, listType)
     }
 }
