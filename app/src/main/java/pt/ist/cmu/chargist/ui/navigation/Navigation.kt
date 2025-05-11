@@ -85,13 +85,13 @@ fun ChargISTNavigation() {
         ) { backStack ->
             val id = backStack.arguments!!.getString("chargerId")!!
             ChargerDetailScreen(
-                chargerId   = id,
+                chargerId = id,
                 onBackClick = { nav.popBackStack() },
-                onGoToMap   = { nav.popBackStack(Route.HOME, false) }, // Added for "Take me there"
+                onGoToMap = { nav.popBackStack(Route.HOME, false) },
                 onSlotClick = { slotId -> nav.navigate(Route.slot(slotId)) },
-                onViewAllSlotsClick = { chargerId -> nav.navigate(Route.chargingSlots(chargerId)) },
-                chargerViewModel = koinViewModel(), // your charger‐details VM
-                mapViewModel     = mapVM
+                onViewAllSlotsClick = { charId -> nav.navigate(Route.chargingSlots(charId)) },
+                chargerViewModel = koinViewModel(),
+                mapViewModel = mapVM
             )
         }
 

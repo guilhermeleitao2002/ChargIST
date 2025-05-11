@@ -131,6 +131,8 @@ class FirestoreChargerRepository(
             speed         = speed,
             connectorType = connectorType,
             price         = price,
+            isAvailable   = true,
+            isDamaged     = false,
             updatedAt     = System.currentTimeMillis()
         )
         slotsCol(chargerId).document(slotId).set(slot).await()

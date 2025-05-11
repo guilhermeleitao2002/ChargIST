@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.List
@@ -37,8 +36,8 @@ import pt.ist.cmu.chargist.data.model.ChargingSpeed
 import pt.ist.cmu.chargist.data.repository.ImageCodec
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -202,7 +201,10 @@ private fun CenterBox(pad: PaddingValues, content: @Composable BoxScope.() -> Un
     Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center, content = content)
 }
 
-private fun LazyListScope.sectionHeader(title: String, action: (() -> Unit)? = null) {
+private fun LazyListScope.sectionHeader(
+    title: String,
+    onAction: (() -> Unit)? = null
+) {
     item {
         Spacer(Modifier.height(16.dp))
         Row(
@@ -217,10 +219,10 @@ private fun LazyListScope.sectionHeader(title: String, action: (() -> Unit)? = n
                 style = MaterialTheme.typography.titleLarge
             )
 
-            action?.let {
-                IconButton(onClick = action) {
+            onAction?.let {
+                IconButton(onClick = onAction) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.List,
+                        imageVector = Icons.Default.List,
                         contentDescription = "View All $title"
                     )
                 }
