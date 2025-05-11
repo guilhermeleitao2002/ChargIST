@@ -78,11 +78,26 @@ class ChargerViewModel(
     }
 
     fun toggleFavorite(userId: String) = viewModelScope.launch {
-        val charger = _detail.value.chargerWithDetails?.charger ?: return@launch
-        if (charger.favoriteUsers.contains(userId)) {
-            chargerRepository.removeFavorite(userId, charger.id)
+        val currentDetails = _detail.value.chargerWithDetails ?: return@launch
+        val charger = currentDetails.charger
+
+        // Create a new list of favorite users with the update
+        val newFavoriteUsers = if (charger.favoriteUsers.contains(userId)) {
+            charger.favoriteUsers - userId
         } else {
+            charger.favoriteUsers + userId
+        }
+
+        // Update the UI immediately with optimistic update
+        val updatedCharger = charger.copy(favoriteUsers = newFavoriteUsers)
+        val updatedDetails = currentDetails.copy(charger = updatedCharger)
+        _detail.value = _detail.value.copy(chargerWithDetails = updatedDetails)
+
+        // Then perform the actual network request in the background
+        if (newFavoriteUsers.contains(userId)) {
             chargerRepository.addFavorite(userId, charger.id)
+        } else {
+            chargerRepository.removeFavorite(userId, charger.id)
         }
     }
 
