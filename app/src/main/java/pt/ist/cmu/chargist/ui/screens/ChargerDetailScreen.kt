@@ -9,8 +9,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,7 +47,7 @@ fun ChargerDetailScreen(
     onBackClick: () -> Unit,
     onGoToMap: () -> Unit,
     onSlotClick: (String) -> Unit,
-    //viewModel: ChargerViewModel = koinViewModel(),
+    onViewAllSlotsClick: (String) -> Unit,
     chargerViewModel: ChargerViewModel = koinViewModel(),
     mapViewModel: MapViewModel
 
@@ -169,12 +171,9 @@ fun ChargerDetailScreen(
                         ) { Marker(MarkerState(loc), title = chargerWithDetails.charger.name) }
                     }
 
-                    sectionHeader("Charging Slots")
-                    if (chargerWithDetails.chargingSlots.isEmpty()) {
-                        item { EmptyLine("No charging slots available") }
-                    } else {
-                        items(chargerWithDetails.chargingSlots) { slot ->
-                            ChargingSlotItem(slot) { onSlotClick(slot.id) }
+                    sectionHeader("Charging Slots") {
+                        if (chargerWithDetails.chargingSlots.isNotEmpty()) {
+                            onViewAllSlotsClick(chargerId)
                         }
                     }
 
@@ -203,14 +202,30 @@ private fun CenterBox(pad: PaddingValues, content: @Composable BoxScope.() -> Un
     Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center, content = content)
 }
 
-private fun LazyListScope.sectionHeader(title: String) {
+private fun LazyListScope.sectionHeader(title: String, action: (() -> Unit)? = null) {
     item {
         Spacer(Modifier.height(16.dp))
-        Text(
-            title,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            action?.let {
+                IconButton(onClick = action) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.List,
+                        contentDescription = "View All $title"
+                    )
+                }
+            }
+        }
         Spacer(Modifier.height(8.dp))
     }
 }
