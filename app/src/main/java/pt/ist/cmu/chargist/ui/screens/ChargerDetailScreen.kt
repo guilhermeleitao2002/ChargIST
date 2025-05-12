@@ -45,7 +45,7 @@ fun ChargerDetailScreen(
     chargerId: String,
     onBackClick: () -> Unit,
     onGoToMap: () -> Unit,
-    onViewAllSlotsClick: (String) -> Unit,
+    onViewSlotDetails: (String) -> Unit,
     chargerViewModel: ChargerViewModel = koinViewModel(),
     mapViewModel: MapViewModel
 
@@ -167,9 +167,64 @@ fun ChargerDetailScreen(
                         ) { Marker(MarkerState(loc), title = chargerWithDetails.charger.name) }
                     }
 
-                    sectionHeader("Charging Slots") {
-                        if (chargerWithDetails.chargingSlots.isNotEmpty()) {
-                            onViewAllSlotsClick(chargerId)
+                    sectionHeader("Charging Slots")
+                    if (chargerWithDetails.chargingSlots.isEmpty()) {
+                        item { EmptyLine("No charging slots available") }
+                    } else {
+                        // Group by charging speed
+                        val fastSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.FAST }
+                        val mediumSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.MEDIUM }
+                        val slowSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.SLOW }
+
+                        // Display fast charging slots
+                        if (fastSlots.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Fast Charging",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(fastSlots) { slot ->
+                                ChargingSlotItem(slot = slot) {
+                                    onViewSlotDetails(slot.id)
+                                }
+                            }
+                        }
+
+                        // Display medium charging slots
+                        if (mediumSlots.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Medium Charging",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(mediumSlots) { slot ->
+                                ChargingSlotItem(slot = slot) {
+                                    onViewSlotDetails(slot.id)
+                                }
+                            }
+                        }
+
+                        // Display slow charging slots
+                        if (slowSlots.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Slow Charging",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(slowSlots) { slot ->
+                                ChargingSlotItem(slot = slot) {
+                                    onViewSlotDetails(slot.id)
+                                }
+                            }
                         }
                     }
 

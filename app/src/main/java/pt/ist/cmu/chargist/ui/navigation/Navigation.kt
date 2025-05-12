@@ -22,11 +22,9 @@ object Route {
     const val PROFILE        = "profile"
     const val CHARGER_DETAIL = "charger_detail"
     const val SLOT_DETAIL    = "slot_detail"
-    const val CHARGING_SLOTS = "charging_slots"
 
     fun charger(id: String) = "$CHARGER_DETAIL/$id"
     fun slot(id: String)    = "$SLOT_DETAIL/$id"
-    fun chargingSlots(chargerId: String) = "$CHARGING_SLOTS/$chargerId"
 }
 
 /* ------------------------------------------------------------------------- */
@@ -80,15 +78,15 @@ fun ChargISTNavigation() {
 
         /* ── Charger details ─────────────────────────────────────────── */
         composable(
-            route      = "${Route.CHARGER_DETAIL}/{chargerId}",
-            arguments  = listOf( navArgument("chargerId"){ type = NavType.StringType } )
+            route = "${Route.CHARGER_DETAIL}/{chargerId}",
+            arguments = listOf(navArgument("chargerId"){ type = NavType.StringType })
         ) { backStack ->
             val id = backStack.arguments!!.getString("chargerId")!!
             ChargerDetailScreen(
                 chargerId = id,
                 onBackClick = { nav.popBackStack() },
                 onGoToMap = { nav.popBackStack(Route.HOME, false) },
-                onViewAllSlotsClick = { charId -> nav.navigate(Route.chargingSlots(charId)) },
+                onViewSlotDetails = { slotId -> nav.navigate(Route.slot(slotId)) }, // Changed this line
                 chargerViewModel = koinViewModel(),
                 mapViewModel = mapVM
             )
@@ -103,19 +101,6 @@ fun ChargISTNavigation() {
             ChargingSlotDetailScreen(
                 slotId      = slotId,
                 onBackClick = { nav.popBackStack() }
-            )
-        }
-
-        /* ── Charging slots ─────────────────────────────────────────── */
-        composable(
-            route = "${Route.CHARGING_SLOTS}/{chargerId}",
-            arguments = listOf(navArgument("chargerId") { type = NavType.StringType })
-        ) { backStack ->
-            val chargerId = backStack.arguments!!.getString("chargerId")!!
-            ChargingSlotsScreen(
-                chargerId = chargerId,
-                onBackClick = { nav.popBackStack() },
-                onSlotClick = { slotId -> nav.navigate(Route.slot(slotId)) }
             )
         }
     }
