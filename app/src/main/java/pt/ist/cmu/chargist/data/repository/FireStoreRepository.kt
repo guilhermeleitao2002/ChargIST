@@ -2,8 +2,10 @@ package pt.ist.cmu.chargist.data.repository
 
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.snapshots
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -226,13 +228,62 @@ class FirestoreChargerRepository(
     /* ---------- naive client‑side search ---------- */
 
     override suspend fun searchChargers(
-        query: String?, chargingSpeed: ChargingSpeed?, isAvailable: Boolean?,
-        maxPrice: Double?, sortBy: String?
+        query: String?,
+        chargingSpeed: ChargingSpeed?,
+        isAvailable: Boolean?,
+        maxPrice: Double?,
+        sortBy: String?
     ): NetworkResult<List<Charger>> = try {
-        val list = chargersCol.get().await().toObjects(Charger::class.java)
-            .filter { q -> query.isNullOrBlank() || q.name.contains(query, true) }
-        NetworkResult.Success(list)
+        // Explicitly declare queryRef as a Query to avoid type mismatch
+        var queryRef: Query = chargersCol
+
+        // Apply name query filter
+        if (!query.isNullOrBlank()) {
+            queryRef = queryRef.whereGreaterThanOrEqualTo("name", query)
+                .whereLessThanOrEqualTo("name", query + "\uf8ff")
+        }
+
+        // Fetch chargers
+        val chargers = queryRef.get().await().toObjects(Charger::class.java)
+        println("Fetched ${chargers.size} chargers after name query")
+
+        // Apply filters involving subcollections client-side
+        val filteredChargers = chargers.filter { charger ->
+            val slots = slotsCol(charger.id).get().await().toObjects(ChargingSlot::class.java)
+            println("Charger ${charger.name} has ${slots.size} slots: ${slots.map { it.price }}")
+
+            // Exclude chargers with no slots
+            if (slots.isEmpty()) {
+                println("Excluding ${charger.name} due to no slots")
+                return@filter false
+            }
+
+            // Availability filter
+            val matchesAvailability = isAvailable == null || slots.any { it.isAvailable == isAvailable }
+            println("Charger ${charger.name} matchesAvailability=$matchesAvailability (isAvailable=$isAvailable)")
+
+            // Price filter
+            val matchesPrice = maxPrice == null || slots.any { slot ->
+                val matches = slot.price <= maxPrice
+                println("Slot price=${slot.price}, maxPrice=$maxPrice, matches=$matches")
+                matches
+            }
+            println("Charger ${charger.name} matchesPrice=$matchesPrice (maxPrice=$maxPrice)")
+
+            matchesAvailability && matchesPrice
+        }
+
+        println("Filtered to ${filteredChargers.size} chargers")
+
+        // Apply sorting
+        val sortedChargers = when (sortBy?.lowercase()) {
+            "name" -> filteredChargers.sortedBy { it.name }
+            "distance" -> filteredChargers // Requires location-based sorting
+            else -> filteredChargers
+        }
+
+        NetworkResult.Success(sortedChargers)
     } catch (t: Throwable) {
-        NetworkResult.Error(t.message ?: "Search failed")
+        NetworkResult.Error(t.message ?: "Search failed: ${t.message}")
     }
 }

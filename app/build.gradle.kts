@@ -54,6 +54,8 @@ android {
 
 dependencies {
 
+    implementation("androidx.compose.material:material-icons-extended:1.6.8")
+
     // Places for Google Maps
     implementation("com.google.android.libraries.places:places:3.3.0")
 

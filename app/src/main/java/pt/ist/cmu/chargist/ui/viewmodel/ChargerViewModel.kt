@@ -11,7 +11,6 @@ import pt.ist.cmu.chargist.data.repository.ChargerRepository
 import pt.ist.cmu.chargist.data.repository.ImageStorageRepository
 import pt.ist.cmu.chargist.util.NetworkResult
 import java.util.UUID
-import android.util.Base64
 import pt.ist.cmu.chargist.data.repository.AuthRepository
 
 /* ───────────── state holders ───────────── */
@@ -50,20 +49,20 @@ data class SearchState(
 
 class ChargerViewModel(
     private val chargerRepository: ChargerRepository,
-    private val authRepository:    AuthRepository,
-    private val imageRepository:   ImageStorageRepository
+    private val authRepository: AuthRepository,
+    private val imageRepository: ImageStorageRepository
 ) : ViewModel() {
 
     /* ---------- state ---------- */
 
     private val _detail = MutableStateFlow(ChargerDetailState())
-    val  chargerDetailState: StateFlow<ChargerDetailState> = _detail.asStateFlow()
+    val chargerDetailState: StateFlow<ChargerDetailState> = _detail.asStateFlow()
 
     private val _create = MutableStateFlow(ChargerCreationState())
-    val  chargerCreationState: StateFlow<ChargerCreationState> = _create.asStateFlow()
+    val chargerCreationState: StateFlow<ChargerCreationState> = _create.asStateFlow()
 
     private val _search = MutableStateFlow(SearchState())
-    val  searchState: StateFlow<SearchState> = _search.asStateFlow()
+    val searchState: StateFlow<SearchState> = _search.asStateFlow()
 
     private val _allChargers = MutableStateFlow<List<Charger>>(emptyList())
     val allChargers: StateFlow<List<Charger>> = _allChargers.asStateFlow()
@@ -75,8 +74,8 @@ class ChargerViewModel(
         chargerRepository.getChargerWithDetails(id).collectLatest { result ->
             _detail.value = when (result) {
                 is NetworkResult.Success -> ChargerDetailState(result.data, isLoading = false)
-                is NetworkResult.Error   -> ChargerDetailState(error = result.message)
-                NetworkResult.Loading    -> ChargerDetailState(isLoading = true)
+                is NetworkResult.Error -> ChargerDetailState(error = result.message)
+                NetworkResult.Loading -> ChargerDetailState(isLoading = true)
             }
         }
     }
@@ -107,17 +106,17 @@ class ChargerViewModel(
 
     /* ---------- mutators for the “add charger” screen ---------- */
 
-    fun updateChargerCreationName(name: String)              { _create.update { it.copy(name = name) } }
-    fun updateChargerCreationLocation(loc: LatLng)           { _create.update { it.copy(location = loc) } }
-    fun updateChargerCreationImage(uri: Uri)                 { _create.update { it.copy(imageUri = uri) } }
-    fun resetChargerCreation()                               { _create.value = ChargerCreationState() }
+    fun updateChargerCreationName(name: String) { _create.update { it.copy(name = name) } }
+    fun updateChargerCreationLocation(loc: LatLng) { _create.update { it.copy(location = loc) } }
+    fun updateChargerCreationImage(uri: Uri) { _create.update { it.copy(imageUri = uri) } }
+    fun resetChargerCreation() { _create.value = ChargerCreationState() }
 
     /* ---------- create charger ---------- */
     fun createCharger() = viewModelScope.launch {
         var s = _create.value
 
         /* 1 · quick validation ------------------------------------------------ */
-        if (s.name.isBlank())   { _create.value = s.copy(error = "Name cannot be empty"); return@launch }
+        if (s.name.isBlank()) { _create.value = s.copy(error = "Name cannot be empty"); return@launch }
         if (s.location == null) { _create.value = s.copy(error = "Please select a location"); return@launch }
 
         _create.value = s.copy(isSubmitting = true, error = null)
@@ -207,13 +206,12 @@ class ChargerViewModel(
         }
     }
 
-
-    /* ---------- search (unchanged) ---------- */
-    fun updateSearchQuery(q: String)                        { _search.update { it.copy(query = q) } }
-    fun updateSearchChargingSpeed(s: ChargingSpeed?)        { _search.update { it.copy(chargingSpeed = s) } }
-    fun updateSearchAvailability(a: Boolean?)               { _search.update { it.copy(isAvailable = a) } }
-    fun updateSearchMaxPrice(p: Double?)                    { _search.update { it.copy(maxPrice = p) } }
-    fun updateSearchSortBy(sort: String)                    { _search.update { it.copy(sortBy = sort) } }
+    /* ---------- search ---------- */
+    fun updateSearchQuery(q: String) { _search.update { it.copy(query = q) } }
+    fun updateSearchChargingSpeed(s: ChargingSpeed?) { _search.update { it.copy(chargingSpeed = s) } }
+    fun updateSearchAvailability(a: Boolean?) { _search.update { it.copy(isAvailable = a) } }
+    fun updateSearchMaxPrice(p: Double?) { _search.update { it.copy(maxPrice = p) } }
+    fun updateSearchSortBy(sort: String) { _search.update { it.copy(sortBy = sort) } }
 
     fun searchChargers() = viewModelScope.launch {
         val st = _search.value
@@ -222,17 +220,23 @@ class ChargerViewModel(
         when (val res = chargerRepository.searchChargers(
             query = st.query.takeIf { it.isNotBlank() },
             chargingSpeed = st.chargingSpeed,
-            isAvailable   = st.isAvailable,
-            maxPrice      = st.maxPrice,
-            sortBy        = st.sortBy
+            isAvailable = st.isAvailable,
+            maxPrice = st.maxPrice,
+            sortBy = st.sortBy
         )) {
-            is NetworkResult.Success -> _search.value = st.copy(
-                searchResults = res.data.map {
-                    ChargerWithDetails(it, emptyList(), emptyList(), emptyList())
-                },
-                isLoading = false
-            )
-            is NetworkResult.Error   -> _search.value = st.copy(error = res.message, isLoading = false)
+            is NetworkResult.Success -> {
+                // Fetch slots for each charger in the search results
+                val resultsWithSlots = res.data.map { charger ->
+                    val slots = chargerRepository.getChargingSlotsForCharger(charger.id)
+                        .first() // Fetch the first emission since it's a Flow
+                    ChargerWithDetails(charger, slots, emptyList(), emptyList())
+                }
+                _search.value = st.copy(
+                    searchResults = resultsWithSlots,
+                    isLoading = false
+                )
+            }
+            is NetworkResult.Error -> _search.value = st.copy(error = res.message, isLoading = false)
             else -> {}
         }
     }

@@ -21,10 +21,11 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.ChargingSpeed
-import pt.ist.cmu.chargist.data.repository.ImageCodec        // ← new import
+import pt.ist.cmu.chargist.data.repository.ImageCodec
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,6 +40,14 @@ fun SearchScreen(
     val scope = rememberCoroutineScope()
     val bottomSheetState = rememberModalBottomSheetState()
 
+    // Debounce the search query
+    LaunchedEffect(searchState.query) {
+        delay(300) // Wait 300ms after the last change
+        if (searchState.query != "") {
+            viewModel.searchChargers()
+        }
+    }
+
     LaunchedEffect(Unit) { viewModel.searchChargers() }
 
     Scaffold(
@@ -52,7 +61,7 @@ fun SearchScreen(
                 },
                 actions = {
                     IconButton(onClick = { showFilters = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Filters")
+                        Icon(Icons.Default.FilterList, contentDescription = "Filters")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -67,8 +76,7 @@ fun SearchScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-
-            /* ───── search bar (unchanged) ───── */
+            /* ───── search bar ───── */
             OutlinedTextField(
                 value = searchState.query,
                 onValueChange = { viewModel.updateSearchQuery(it) },
@@ -85,8 +93,6 @@ fun SearchScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(24.dp)
             )
-
-            /* chips … (all unchanged) */
 
             /* ───── results list ───── */
             when {
@@ -113,7 +119,6 @@ fun SearchScreen(
                                         .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-
                                     /* ---------- station image with Base‑64 ---------- */
                                     val photoData = charger.imageData
                                     if (photoData != null) {
@@ -168,7 +173,7 @@ fun SearchScreen(
                                         }
 
                                         val available = result.chargingSlots.count { it.isAvailable }
-                                        val total     = result.chargingSlots.size
+                                        val total = result.chargingSlots.size
                                         Text(
                                             if (total > 0) "$available/$total slots available"
                                             else "No slot information",
@@ -184,7 +189,79 @@ fun SearchScreen(
         }
     }
 
-    /* bottom‑sheet filters (unchanged) */
+    if (showFilters) {
+        ModalBottomSheet(
+            onDismissRequest = { showFilters = false },
+            sheetState = bottomSheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    "Filters",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                // Availability Filter
+                var showAvailableOnly by remember { mutableStateOf(searchState.isAvailable ?: false) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text("Show Available Only", modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = showAvailableOnly,
+                        onCheckedChange = { newValue ->
+                            showAvailableOnly = newValue
+                            viewModel.updateSearchAvailability(if (newValue) true else null)
+                            scope.launch { viewModel.searchChargers() }
+                        }
+                    )
+                }
+
+                // Price Filter
+                var maxPrice by remember { mutableStateOf(searchState.maxPrice ?: 1.0) }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text("Maximum Price per kWh: $${String.format("%.2f", maxPrice)}")
+                    Slider(
+                        value = maxPrice.toFloat(),
+                        onValueChange = { newValue ->
+                            maxPrice = (newValue.toDouble() * 20).toInt() / 20.0 // Round to nearest 0.05
+                            viewModel.updateSearchMaxPrice(maxPrice)
+                            scope.launch { viewModel.searchChargers() }
+                        },
+                        valueRange = 0f..1f,
+                        steps = 19 // Steps of 0.05 between 0 and 1 (20 intervals)
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
+                            if (!bottomSheetState.isVisible) {
+                                showFilters = false
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                ) {
+                    Text("Apply Filters")
+                }
+            }
+        }
+    }
 }
 
 /* ---------- small helper ---------- */
