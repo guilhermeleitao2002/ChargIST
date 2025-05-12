@@ -38,6 +38,7 @@ data class MapState(
     val chargers: List<Charger> = emptyList(),
     val favoriteChargers: List<Charger> = emptyList(),
     val currentLocation: LatLng? = null,
+    val searchedLocation: LatLng? = null, // New field for searched addresses
     val hasLocationPermission: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null
@@ -177,28 +178,28 @@ class MapViewModel(
             try {
                 _mapState.update { it.copy(isLoading = true, error = null) }
 
-                val geocoder = Geocoder(context, Locale.getDefault())
-                var addressList: List<Address>? = null
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    geocoder.getFromLocationName(query, 1) { addresses ->
-                        addressList = addresses
+                val geocoder = Geocoder(context, Locale("pt", "PT")) // Use Portuguese locale if applicable
+                val addressList: List<Address>? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    suspendCancellableCoroutine { continuation ->
+                        geocoder.getFromLocationName(query, 1) { addresses ->
+                            continuation.resume(addresses)
+                        }
                     }
-                    delay(1000)
                 } else {
                     @Suppress("DEPRECATION")
-                    addressList = geocoder.getFromLocationName(query, 1)
+                    geocoder.getFromLocationName(query, 1)
                 }
 
                 if (!addressList.isNullOrEmpty()) {
-                    val address = addressList!![0]
+                    val address = addressList[0]
                     val latLng = LatLng(address.latitude, address.longitude)
                     _mapState.update {
                         it.copy(
-                            currentLocation = latLng,
+                            searchedLocation = latLng,
                             isLoading = false
                         )
                     }
+                    focusOn(latLng) // Trigger map to focus on this location
                 } else {
                     _mapState.update {
                         it.copy(
