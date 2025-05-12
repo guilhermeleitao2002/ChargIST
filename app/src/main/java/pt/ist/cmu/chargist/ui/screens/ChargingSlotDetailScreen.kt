@@ -34,6 +34,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,15 +55,40 @@ fun ChargingSlotDetailScreen(
     onBackClick: () -> Unit,
     viewModel: ChargerViewModel = koinViewModel()
 ) {
-    LaunchedEffect(slotId) {
-        // In a real implementation, we would load the specific slot details
-        // For now, we'll assume the details are already in the chargerDetailState
-    }
+    var debugMessage by remember { mutableStateOf<String?>(null) }
+
+    // We need a different approach for getting the charger ID
+    // The slot ID doesn't contain the charger ID in the format we expected
 
     val detailState by viewModel.chargerDetailState.collectAsState()
-    val chargerWithDetails = detailState.chargerWithDetails
 
-    // Find the specific slot
+    // First, let's determine if we need to load charger data
+    LaunchedEffect(Unit) {
+        // Instead of trying to extract chargerId from slotId,
+        // we need to search through all loaded chargers to find which one contains this slot
+        // OR use a direct API call to get slot details
+
+        // For now, let's try loading each charger that might contain this slot
+        viewModel.loadAllChargers()
+        debugMessage = "Attempting to find charger containing slot: $slotId"
+    }
+
+    // Search for the slot in all loaded chargers
+    val chargerWithSlot = remember(detailState.allChargers, slotId) {
+        detailState.allChargers.find { charger ->
+            charger.chargingSlots.any { it.id == slotId }
+        }
+    }
+
+    // If we found the charger, load its full details
+    LaunchedEffect(chargerWithSlot) {
+        if (chargerWithSlot != null) {
+            viewModel.loadChargerDetails(chargerWithSlot.id)
+            debugMessage = "Found charger containing slot: ${chargerWithSlot.id}"
+        }
+    }
+
+    val chargerWithDetails = detailState.chargerWithDetails
     val slot = chargerWithDetails?.chargingSlots?.find { it.id == slotId }
 
     Scaffold(
@@ -98,10 +126,22 @@ fun ChargingSlotDetailScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = detailState.error ?: "Unknown error",
-                    color = MaterialTheme.colorScheme.error
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = detailState.error ?: "Unknown error",
+                        color = MaterialTheme.colorScheme.error
+                    )
+
+                    // Show debug info if available
+                    debugMessage?.let {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         } else if (slot != null) {
             Column(
@@ -292,6 +332,59 @@ fun ChargingSlotDetailScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        } else {
+            // If slot is null but we have charger details, show error with more details
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "Charging slot not found",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // More detailed debug info
+                    Text(
+                        text = "Slot ID: $slotId",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    if (chargerWithDetails != null) {
+                        Text(
+                            text = "Charger found: ${chargerWithDetails.charger.name}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
+                        Text(
+                            text = "Available slots: ${chargerWithDetails.chargingSlots.size}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
+                        if (chargerWithDetails.chargingSlots.isNotEmpty()) {
+                            Text(
+                                text = "Available slot IDs: ${chargerWithDetails.chargingSlots.map { it.id }}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+
+                    // Show the debug message if available
+                    debugMessage?.let {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
     }
