@@ -1,11 +1,13 @@
 package pt.ist.cmu.chargist.ui.screens
 
-/* ---------- imports ---------- */
 import android.Manifest
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -24,20 +26,23 @@ import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.Charger
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
-
-/* ───────────────────────────────────────────────────────────────────────── */
+import com.google.android.libraries.places.api.model.AutocompletePrediction
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onChargerClick:    (String) -> Unit,
+    onChargerClick: (String) -> Unit,
     onAddChargerClick: () -> Unit,
-    onSearchClick:     () -> Unit,
-    onProfileClick:    () -> Unit,
-    mapViewModel:      MapViewModel  = koinViewModel(),
-    userViewModel:     UserViewModel = koinViewModel()
+    onSearchClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    mapViewModel: MapViewModel = koinViewModel(),
+    userViewModel: UserViewModel = koinViewModel()
 ) {
-    /* ---------- permission helper ---------- */
+    val mapState by mapViewModel.mapState.collectAsState()
+    val userState by userViewModel.userState.collectAsState()
+    val coroutine = rememberCoroutineScope()
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -47,12 +52,6 @@ fun HomeScreen(
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
-    /* ---------- state ---------- */
-    val mapState   by mapViewModel.mapState.collectAsState()
-    val userState  by userViewModel.userState.collectAsState()
-    val coroutine  = rememberCoroutineScope()
-
-    /* ---------- camera ---------- */
     val cameraPosState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
             mapState.currentLocation ?: LatLng(38.7369, -9.1366),
@@ -60,11 +59,10 @@ fun HomeScreen(
         )
     }
 
-    /* respond to “focusOn()” requests from ChargerDetailScreen */
     LaunchedEffect(Unit) {
         mapViewModel.focusRequests.collect { target ->
             cameraPosState.animate(
-                update     = CameraUpdateFactory.newLatLngZoom(target, 17f),
+                update = CameraUpdateFactory.newLatLngZoom(target, 17f),
                 durationMs = 750
             )
             mapViewModel.markFocusConsumed()
@@ -72,25 +70,32 @@ fun HomeScreen(
         }
     }
 
-    /* Move camera to searched location */
     LaunchedEffect(mapState.searchedLocation) {
         mapState.searchedLocation?.let { location ->
             cameraPosState.animate(CameraUpdateFactory.newLatLngZoom(location, 15f))
         }
     }
 
-    /* ---------- simple free‑tier address dialog ---------- */
     var showAddressDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Debounce para evitar requisições excessivas
+    LaunchedEffect(searchQuery) {
+        delay(300) // Debounce de 300ms
+        if (searchQuery.isNotEmpty()) {
+            mapViewModel.getAutocompleteSuggestions(searchQuery)
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title   = { Text("ChargIST") },
+                title = { Text("ChargIST") },
                 actions = {
                     IconButton(onClick = { showAddressDialog = true }) {
                         Icon(Icons.Default.LocationOn, "Search address")
                     }
-                    IconButton(onClick = onSearchClick)  {
+                    IconButton(onClick = onSearchClick) {
                         Icon(Icons.Default.Search, "Search chargers")
                     }
                     IconButton(onClick = onProfileClick) {
@@ -106,21 +111,19 @@ fun HomeScreen(
             FloatingActionButton(
                 onClick = onAddChargerClick,
                 containerColor = MaterialTheme.colorScheme.primary
-
             ) { Icon(Icons.Default.Add, "Add charger", tint = Color.White) }
         }
     ) { pad ->
-        /* ------------------ MAP ------------------ */
         Box(Modifier.fillMaxSize().padding(pad)) {
             GoogleMap(
-                modifier            = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPosState,
-                properties          = MapProperties(
+                properties = MapProperties(
                     isMyLocationEnabled = mapState.hasLocationPermission
                 ),
-                uiSettings          = MapUiSettings(
+                uiSettings = MapUiSettings(
                     myLocationButtonEnabled = true,
-                    zoomControlsEnabled     = false
+                    zoomControlsEnabled = false
                 )
             ) {
                 mapState.chargers.forEach { charger ->
@@ -128,9 +131,9 @@ fun HomeScreen(
                     Marker(
                         state = MarkerState(charger.getLatLng()),
                         title = charger.name,
-                        icon  = BitmapDescriptorFactory.defaultMarker(
+                        icon = BitmapDescriptorFactory.defaultMarker(
                             if (fav) BitmapDescriptorFactory.HUE_ROSE
-                            else      BitmapDescriptorFactory.HUE_GREEN
+                            else BitmapDescriptorFactory.HUE_GREEN
                         ),
                         onClick = {
                             onChargerClick(charger.id)
@@ -140,7 +143,6 @@ fun HomeScreen(
                 }
             }
 
-            /* error banner */
             mapState.error?.let {
                 Text(
                     it,
@@ -153,26 +155,47 @@ fun HomeScreen(
         }
     }
 
-    /* ---------- address input dialog ---------- */
     if (showAddressDialog) {
-        var text by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showAddressDialog = false },
-            title            = { Text("Search Address") },
-            text             = {
-                OutlinedTextField(
-                    value       = text,
-                    onValueChange = { text = it },
-                    label       = { Text("Enter address") },
-                    singleLine  = true
-                )
+            title = { Text("Search Address") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text("Enter address") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    // Dropdown de sugestões
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 200.dp)
+                    ) {
+                        items(mapState.autocompleteSuggestions) { prediction ->
+                            Text(
+                                text = prediction.getFullText(null).toString(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        searchQuery = prediction.getFullText(null).toString()
+                                        mapViewModel.searchAddressUsingPlaceId(prediction.placeId)
+                                        showAddressDialog = false
+                                    }
+                                    .padding(8.dp)
+                            )
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (text.isNotBlank()) {
+                        if (searchQuery.isNotBlank()) {
                             coroutine.launch {
-                                mapViewModel.searchAddressUsingGeocoder(text)
+                                mapViewModel.searchAddressUsingPlaceId(mapState.autocompleteSuggestions.firstOrNull()?.placeId ?: "")
                             }
                         }
                         showAddressDialog = false
@@ -186,20 +209,19 @@ fun HomeScreen(
     }
 }
 
-/* ---------- marker composable (unchanged) ---------- */
 @Composable
 fun ChargerMarker(
-    charger:     Charger,
-    isFavorite:  Boolean,
-    onClick:     () -> Unit
+    charger: Charger,
+    isFavorite: Boolean,
+    onClick: () -> Unit
 ) {
     val hue = if (isFavorite) BitmapDescriptorFactory.HUE_ROSE
-    else           BitmapDescriptorFactory.HUE_GREEN
+    else BitmapDescriptorFactory.HUE_GREEN
 
     Marker(
         state = MarkerState(charger.getLatLng()),
         title = charger.name,
-        icon  = BitmapDescriptorFactory.defaultMarker(hue),
+        icon = BitmapDescriptorFactory.defaultMarker(hue),
         onClick = { onClick(); true }
     )
 }

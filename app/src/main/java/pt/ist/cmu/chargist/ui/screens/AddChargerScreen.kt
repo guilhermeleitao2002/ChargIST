@@ -1,6 +1,5 @@
 package pt.ist.cmu.chargist.ui.screens
 
-/* ---------- imports ---------- */
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,6 +10,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
@@ -28,12 +29,12 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
-
-/* ------------------------------------------------------------------------- */
+import com.google.android.libraries.places.api.model.AutocompletePrediction
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,38 +42,31 @@ fun AddChargerScreen(
     onBackClick: () -> Unit,
     onSuccess: () -> Unit,
     chargerViewModel: ChargerViewModel = koinViewModel(),
-    mapViewModel: MapViewModel     = koinViewModel()
+    mapViewModel: MapViewModel = koinViewModel()
 ) {
-    /* ---------- state ---------- */
     val chargerCreationState by chargerViewModel.chargerCreationState.collectAsState()
-    val mapState            by mapViewModel.mapState.collectAsState()
-    val snackbarHostState   = remember { SnackbarHostState() }
-    val coroutine           = rememberCoroutineScope()
+    val mapState by mapViewModel.mapState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutine = rememberCoroutineScope()
 
-    /* selected map location */
     var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
 
-    /* charging positions */
-    var fastPositions   by remember { mutableIntStateOf(0) }
+    var fastPositions by remember { mutableIntStateOf(0) }
     var mediumPositions by remember { mutableIntStateOf(0) }
-    var slowPositions   by remember { mutableIntStateOf(0) }
+    var slowPositions by remember { mutableIntStateOf(0) }
 
-    /* camera position (IST fallback) */
     val defaultLocation = mapState.currentLocation ?: LatLng(38.7369, -9.1366)
-    val cameraPosState  = rememberCameraPositionState {
+    val cameraPosState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultLocation, 15f)
     }
 
-    /* ---------- activity result: pick image ---------- */
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri -> uri?.let { chargerViewModel.updateChargerCreationImage(it) } }
     )
 
-    /* ---------- cheap address search (Geocoder) ---------- */
     var showAddressDialog by remember { mutableStateOf(false) }
 
-    /* navigation on success */
     LaunchedEffect(chargerCreationState.isSuccess) {
         if (chargerCreationState.isSuccess) {
             onSuccess()
@@ -80,14 +74,12 @@ fun AddChargerScreen(
         }
     }
 
-    /* error snackbar */
     LaunchedEffect(chargerCreationState.error) {
         chargerCreationState.error?.let {
             coroutine.launch { snackbarHostState.showSnackbar(it) }
         }
     }
 
-    /* Move camera to searched location */
     LaunchedEffect(mapState.searchedLocation) {
         mapState.searchedLocation?.let { location ->
             cameraPosState.animate(CameraUpdateFactory.newLatLngZoom(location, 15f))
@@ -96,7 +88,6 @@ fun AddChargerScreen(
         }
     }
 
-    /* ------------------------------ UI ------------------------------ */
     Scaffold(
         topBar = {
             TopAppBar(
@@ -121,18 +112,16 @@ fun AddChargerScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            /* ---------- name ---------- */
             OutlinedTextField(
-                value         = chargerCreationState.name,
+                value = chargerCreationState.name,
                 onValueChange = { chargerViewModel.updateChargerCreationName(it) },
-                label         = { Text("Station Name") },
-                placeholder   = { Text("Enter station name") },
-                modifier      = Modifier.fillMaxWidth()
+                label = { Text("Station Name") },
+                placeholder = { Text("Enter station name") },
+                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(Modifier.height(16.dp))
 
-            /* ---------- map ---------- */
             Text("Select Location", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
 
@@ -144,11 +133,11 @@ fun AddChargerScreen(
                     .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
             ) {
                 GoogleMap(
-                    modifier            = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPosState,
-                    properties          = MapProperties(isMyLocationEnabled = true),
-                    uiSettings          = MapUiSettings(zoomControlsEnabled = false, compassEnabled = false),
-                    onMapClick          = { latLng ->
+                    properties = MapProperties(isMyLocationEnabled = true),
+                    uiSettings = MapUiSettings(zoomControlsEnabled = false, compassEnabled = false),
+                    onMapClick = { latLng ->
                         selectedLocation = latLng
                         chargerViewModel.updateChargerCreationLocation(latLng)
                     }
@@ -158,9 +147,8 @@ fun AddChargerScreen(
                     }
                 }
 
-                /* tiny search button (opens free‑tier dialog) */
                 IconButton(
-                    onClick  = { showAddressDialog = true },
+                    onClick = { showAddressDialog = true },
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp)
@@ -173,7 +161,6 @@ fun AddChargerScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            /* ---------- photo ---------- */
             Text("Add Photo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
 
@@ -213,23 +200,21 @@ fun AddChargerScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            /* ---------- charging positions ---------- */
             Text("Charging Positions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
 
-            ChargingPositionSelector("Fast Charging",   fastPositions)   { fastPositions   = it; chargerViewModel.updateFastPositions(it) }
+            ChargingPositionSelector("Fast Charging", fastPositions) { fastPositions = it; chargerViewModel.updateFastPositions(it) }
             Spacer(Modifier.height(8.dp))
             ChargingPositionSelector("Medium Charging", mediumPositions) { mediumPositions = it; chargerViewModel.updateMediumPositions(it) }
             Spacer(Modifier.height(8.dp))
-            ChargingPositionSelector("Slow Charging",   slowPositions)   { slowPositions   = it; chargerViewModel.updateSlowPositions(it) }
+            ChargingPositionSelector("Slow Charging", slowPositions) { slowPositions = it; chargerViewModel.updateSlowPositions(it) }
 
             Spacer(Modifier.height(32.dp))
 
-            /* ---------- submit ---------- */
             Button(
                 onClick = { chargerViewModel.createCharger() },
                 modifier = Modifier.fillMaxWidth(),
-                enabled  = !chargerCreationState.isSubmitting &&
+                enabled = !chargerCreationState.isSubmitting &&
                         chargerCreationState.name.isNotBlank() &&
                         chargerCreationState.location != null &&
                         (fastPositions > 0 || mediumPositions > 0 || slowPositions > 0)
@@ -245,25 +230,56 @@ fun AddChargerScreen(
         }
     }
 
-    /* ---------- address input dialog ---------- */
     if (showAddressDialog) {
         var text by remember { mutableStateOf("") }
+
+        LaunchedEffect(text) {
+            delay(300) // Debounce de 300ms
+            if (text.isNotEmpty()) {
+                mapViewModel.getAutocompleteSuggestions(text)
+            }
+        }
+
         AlertDialog(
             onDismissRequest = { showAddressDialog = false },
-            title            = { Text("Search Address") },
-            text             = {
-                OutlinedTextField(
-                    value         = text,
-                    onValueChange = { text = it },
-                    label         = { Text("Enter address") },
-                    singleLine    = true
-                )
+            title = { Text("Search Address") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        label = { Text("Enter address") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 200.dp)
+                    ) {
+                        items(mapState.autocompleteSuggestions) { prediction ->
+                            Text(
+                                text = prediction.getFullText(null).toString(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        text = prediction.getFullText(null).toString()
+                                        mapViewModel.searchAddressUsingPlaceId(prediction.placeId)
+                                        showAddressDialog = false
+                                    }
+                                    .padding(8.dp)
+                            )
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (text.isNotBlank()) {
-                            coroutine.launch { mapViewModel.searchAddressUsingGeocoder(text) }
+                        if (text.isNotBlank() && mapState.autocompleteSuggestions.isNotEmpty()) {
+                            coroutine.launch {
+                                mapViewModel.searchAddressUsingPlaceId(mapState.autocompleteSuggestions.firstOrNull()?.placeId ?: "")
+                            }
                         }
                         showAddressDialog = false
                     }
@@ -275,8 +291,6 @@ fun AddChargerScreen(
         )
     }
 }
-
-/* ------------------------------------------------------------------------- */
 
 @Composable
 fun ChargingPositionSelector(
@@ -291,10 +305,10 @@ fun ChargingPositionSelector(
             Text(count.toString(), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
         }
         Slider(
-            value         = count.toFloat(),
+            value = count.toFloat(),
             onValueChange = { onCountChange(it.toInt()) },
-            valueRange    = 0f..10f,
-            steps         = 9
+            valueRange = 0f..10f,
+            steps = 9
         )
     }
 }
