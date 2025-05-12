@@ -38,6 +38,7 @@ import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.filled.Add
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,9 +47,9 @@ fun ChargerDetailScreen(
     onBackClick: () -> Unit,
     onGoToMap: () -> Unit,
     onViewSlotDetails: (String) -> Unit,
+    onAddChargingSlot: (String) -> Unit, // Add this parameter
     chargerViewModel: ChargerViewModel = koinViewModel(),
     mapViewModel: MapViewModel
-
 ) {
     LaunchedEffect(chargerId) { chargerViewModel.loadChargerDetails(chargerId) }
 
@@ -167,7 +168,7 @@ fun ChargerDetailScreen(
                         ) { Marker(MarkerState(loc), title = chargerWithDetails.charger.name) }
                     }
 
-                    sectionHeader("Charging Slots")
+                    sectionHeader("Charging Slots", onAddAction = { onAddChargingSlot(chargerId) })
                     if (chargerWithDetails.chargingSlots.isEmpty()) {
                         item { EmptyLine("No charging slots available") }
                     } else {
@@ -255,7 +256,8 @@ private fun CenterBox(pad: PaddingValues, content: @Composable BoxScope.() -> Un
 
 private fun LazyListScope.sectionHeader(
     title: String,
-    onAction: (() -> Unit)? = null
+    onAction: (() -> Unit)? = null,
+    onAddAction: (() -> Unit)? = null // Add this parameter
 ) {
     item {
         Spacer(Modifier.height(16.dp))
@@ -271,12 +273,25 @@ private fun LazyListScope.sectionHeader(
                 style = MaterialTheme.typography.titleLarge
             )
 
-            onAction?.let {
-                IconButton(onClick = onAction) {
-                    Icon(
-                        imageVector = Icons.Default.List,
-                        contentDescription = "View All $title"
-                    )
+            Row {
+                // Add button if onAddAction is provided
+                onAddAction?.let {
+                    IconButton(onClick = onAddAction) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = "Add $title"
+                        )
+                    }
+                }
+
+                // Original action button (if provided)
+                onAction?.let {
+                    IconButton(onClick = onAction) {
+                        Icon(
+                            imageVector = Icons.Default.List,
+                            contentDescription = "View All $title"
+                        )
+                    }
                 }
             }
         }

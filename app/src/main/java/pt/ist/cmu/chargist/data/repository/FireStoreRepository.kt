@@ -97,6 +97,13 @@ class FirestoreChargerRepository(
         }.getOrElse { NetworkResult.Error(it.message ?: "Create failed") }
     }
 
+    override suspend fun getAllChargersSync(): NetworkResult<List<Charger>> = try {
+        val chargers = chargersCol.get().await().toObjects(Charger::class.java)
+        NetworkResult.Success(chargers)
+    } catch (e: Exception) {
+        NetworkResult.Error(e.message ?: "Failed to load chargers")
+    }
+
     override suspend fun updateFavoriteStatus(
         chargerId: String,
         isFavorite: Boolean

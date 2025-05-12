@@ -18,6 +18,7 @@ import pt.ist.cmu.chargist.data.repository.AuthRepository
 
 data class ChargerDetailState(
     val chargerWithDetails: ChargerWithDetails? = null,
+    val allChargers: List<Charger> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -64,13 +65,16 @@ class ChargerViewModel(
     private val _search = MutableStateFlow(SearchState())
     val  searchState: StateFlow<SearchState> = _search.asStateFlow()
 
+    private val _allChargers = MutableStateFlow<List<Charger>>(emptyList())
+    val allChargers: StateFlow<List<Charger>> = _allChargers.asStateFlow()
+
     /* ---------- details ---------- */
 
     fun loadChargerDetails(id: String) = viewModelScope.launch {
         _detail.value = ChargerDetailState(isLoading = true)
         chargerRepository.getChargerWithDetails(id).collectLatest { result ->
             _detail.value = when (result) {
-                is NetworkResult.Success -> ChargerDetailState(result.data, false)
+                is NetworkResult.Success -> ChargerDetailState(result.data, isLoading = false)
                 is NetworkResult.Error   -> ChargerDetailState(error = result.message)
                 NetworkResult.Loading    -> ChargerDetailState(isLoading = true)
             }
@@ -229,6 +233,18 @@ class ChargerViewModel(
                 isLoading = false
             )
             is NetworkResult.Error   -> _search.value = st.copy(error = res.message, isLoading = false)
+            else -> {}
+        }
+    }
+
+    fun loadAllChargers() = viewModelScope.launch {
+        when (val result = chargerRepository.getAllChargersSync()) {
+            is NetworkResult.Success -> {
+                _detail.update { it.copy(allChargers = result.data) }
+            }
+            is NetworkResult.Error -> {
+                _detail.update { it.copy(error = result.message) }
+            }
             else -> {}
         }
     }

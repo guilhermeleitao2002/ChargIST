@@ -22,9 +22,11 @@ object Route {
     const val PROFILE        = "profile"
     const val CHARGER_DETAIL = "charger_detail"
     const val SLOT_DETAIL    = "slot_detail"
+    const val ADD_CHARGING_SLOT = "add_charging_slot"
 
     fun charger(id: String) = "$CHARGER_DETAIL/$id"
     fun slot(id: String)    = "$SLOT_DETAIL/$id"
+    fun addChargingSlot(chargerId: String) = "$ADD_CHARGING_SLOT/$chargerId"
 }
 
 /* ------------------------------------------------------------------------- */
@@ -86,7 +88,8 @@ fun ChargISTNavigation() {
                 chargerId = id,
                 onBackClick = { nav.popBackStack() },
                 onGoToMap = { nav.popBackStack(Route.HOME, false) },
-                onViewSlotDetails = { slotId -> nav.navigate(Route.slot(slotId)) }, // Changed this line
+                onViewSlotDetails = { slotId -> nav.navigate(Route.slot(slotId)) },
+                onAddChargingSlot = { chargerId -> nav.navigate(Route.addChargingSlot(chargerId)) }, // Add this line
                 chargerViewModel = koinViewModel(),
                 mapViewModel = mapVM
             )
@@ -101,6 +104,19 @@ fun ChargISTNavigation() {
             ChargingSlotDetailScreen(
                 slotId      = slotId,
                 onBackClick = { nav.popBackStack() }
+            )
+        }
+
+        /* ── Add charging slot ───────────────────────────────────────── */
+        composable(
+            route = "${Route.ADD_CHARGING_SLOT}/{chargerId}",
+            arguments = listOf(navArgument("chargerId") { type = NavType.StringType })
+        ) { backStack ->
+            val id = backStack.arguments!!.getString("chargerId")!!
+            AddChargingSlotScreen(
+                chargerId = id,
+                onBackClick = { nav.popBackStack() },
+                onSuccess = { nav.popBackStack() }
             )
         }
     }

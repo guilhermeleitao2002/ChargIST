@@ -1,192 +1,104 @@
 package pt.ist.cmu.chargist.ui.screens
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+/* ---------- imports ---------- */
+import android.Manifest
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapProperties
-import com.google.maps.android.compose.MapUiSettings
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.rememberCameraPositionState
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.material.icons.filled.LocationOn
+import com.google.maps.android.compose.*
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.Charger
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
-import android.Manifest
-import android.util.Log
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.rememberCoroutineScope
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.libraries.places.api.Places
-import com.google.firebase.auth.FirebaseAuth
 import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
-import pt.ist.cmu.chargist.util.PlaceSearch
 
+/* ───────────────────────────────────────────────────────────────────────── */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onChargerClick: (String) -> Unit,
+    onChargerClick:    (String) -> Unit,
     onAddChargerClick: () -> Unit,
-    onSearchClick: () -> Unit,
-    onProfileClick: () -> Unit,
-    //viewModel: MapViewModel = koinViewModel(),
-    mapViewModel: MapViewModel,
-    userViewModel: UserViewModel
+    onSearchClick:     () -> Unit,
+    onProfileClick:    () -> Unit,
+    mapViewModel:      MapViewModel  = koinViewModel(),
+    userViewModel:     UserViewModel = koinViewModel()
 ) {
-    var showManualSearchDialog by remember { mutableStateOf(false) }
-
-    /* ── 1. Ask for ACCESS_FINE_LOCATION once ─────────────────────── */
-    val permissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) mapViewModel.onLocationPermissionGranted()
-        }
-
+    /* ---------- permission helper ---------- */
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) mapViewModel.onLocationPermissionGranted()
+    }
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
-    // Register the place search launcher
-    val searchAddressLauncher = rememberLauncherForActivityResult(
-        contract = PlaceSearch()
-    ) { latLng ->
-        latLng?.let {
-            // Move camera to the selected location
-            mapViewModel.setLocationAndMoveCameraManually(it)
-        }
+    /* ---------- state ---------- */
+    val mapState   by mapViewModel.mapState.collectAsState()
+    val userState  by userViewModel.userState.collectAsState()
+    val coroutine  = rememberCoroutineScope()
+
+    /* ---------- camera ---------- */
+    val cameraPosState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(
+            mapState.currentLocation ?: LatLng(38.7369, -9.1366),
+            15f
+        )
     }
 
-    val mapState by mapViewModel.mapState.collectAsState()
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    val userState by userViewModel.userState.collectAsState()
-
-    LaunchedEffect(userState.user) {
-        try {
-            val userId = userState.user?.id
-            if (userId != null) {
-                mapViewModel.loadFavoriteChargers2(userId)
-            } else if (mapState.chargers.isEmpty()) {
-                mapViewModel.loadChargers()
-            }
-        } catch (e: Exception) {
-            mapViewModel.updateError("Failed to load chargers: ${e.message}")
-        }
-    }
-
-    // Initial position - IST Campus (Alameda)
-    var defaultLocation by remember {
-        mutableStateOf(LatLng(38.7369, -9.1366))
-    }
-
-    // If user's current location is available, use it
-    LaunchedEffect(mapState.currentLocation) {
-        mapState.currentLocation?.let {
-            defaultLocation = it
-        }
-    }
-
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(defaultLocation, 15f)
-    }
-
+    /* respond to “focusOn()” requests from ChargerDetailScreen */
     LaunchedEffect(Unit) {
         mapViewModel.focusRequests.collect { target ->
-            cameraPositionState.animate(
-                update = CameraUpdateFactory.newLatLngZoom(target, 17f),
+            cameraPosState.animate(
+                update     = CameraUpdateFactory.newLatLngZoom(target, 17f),
                 durationMs = 750
             )
             mapViewModel.markFocusConsumed()
             mapViewModel.loadChargers()
-
         }
     }
 
-    val mapUiSettings = remember {
-        MapUiSettings(
-            zoomControlsEnabled = false,
-            myLocationButtonEnabled = true
-        )
+    /* Move camera to searched location */
+    LaunchedEffect(mapState.searchedLocation) {
+        mapState.searchedLocation?.let { location ->
+            cameraPosState.animate(CameraUpdateFactory.newLatLngZoom(location, 15f))
+        }
     }
 
-    val mapProperties = remember {
-        MapProperties(
-            isMyLocationEnabled = true
-        )
-    }
+    /* ---------- simple free‑tier address dialog ---------- */
+    var showAddressDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ChargIST") },
+                title   = { Text("ChargIST") },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            try {
-                                searchAddressLauncher.launch(Unit)
-                            } catch (e: Exception) {
-                                Log.e("HomeScreen", "Error launching Places: ${e.message}")
-                                // Show our fallback dialog instead
-                                showManualSearchDialog = true
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = "Search Address"
-                        )
+                    IconButton(onClick = { showAddressDialog = true }) {
+                        Icon(Icons.Default.LocationOn, "Search address")
                     }
-                    IconButton(onClick = onSearchClick) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search"
-                        )
+                    IconButton(onClick = onSearchClick)  {
+                        Icon(Icons.Default.Search, "Search chargers")
                     }
                     IconButton(onClick = onProfileClick) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profile"
-                        )
+                        Icon(Icons.Default.Person, "Profile")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
         },
@@ -194,117 +106,100 @@ fun HomeScreen(
             FloatingActionButton(
                 onClick = onAddChargerClick,
                 containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Charger",
-                    tint = Color.White
-                )
-            }
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState,
-                properties = MapProperties(
-                    isMyLocationEnabled = mapState.hasLocationPermission   // ← key line
-                ),
-                uiSettings = mapUiSettings,
 
+            ) { Icon(Icons.Default.Add, "Add charger", tint = Color.White) }
+        }
+    ) { pad ->
+        /* ------------------ MAP ------------------ */
+        Box(Modifier.fillMaxSize().padding(pad)) {
+            GoogleMap(
+                modifier            = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPosState,
+                properties          = MapProperties(
+                    isMyLocationEnabled = mapState.hasLocationPermission
+                ),
+                uiSettings          = MapUiSettings(
+                    myLocationButtonEnabled = true,
+                    zoomControlsEnabled     = false
+                )
             ) {
-                // Display all chargers on the map
                 mapState.chargers.forEach { charger ->
-                    val isFavorite = userState.user?.id?.let { charger.favoriteUsers.contains(it) } ?: false
-                    ChargerMarker(
-                        charger = charger,
-                        isFavorite = isFavorite,
-                        onClick = { onChargerClick(charger.id) }
+                    val fav = userState.user?.id?.let { charger.favoriteUsers.contains(it) } ?: false
+                    Marker(
+                        state = MarkerState(charger.getLatLng()),
+                        title = charger.name,
+                        icon  = BitmapDescriptorFactory.defaultMarker(
+                            if (fav) BitmapDescriptorFactory.HUE_ROSE
+                            else      BitmapDescriptorFactory.HUE_GREEN
+                        ),
+                        onClick = {
+                            onChargerClick(charger.id)
+                            true
+                        }
                     )
                 }
             }
 
-            // Error message if any
-            if (mapState.error != null) {
-                Box(
+            /* error banner */
+            mapState.error?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = mapState.error ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
-            }
-
-            if (showManualSearchDialog) {
-                var addressInput by remember { mutableStateOf("") }
-
-                AlertDialog(
-                    onDismissRequest = { showManualSearchDialog = false },
-                    title = { Text("Search Address") },
-                    text = {
-                        OutlinedTextField(
-                            value = addressInput,
-                            onValueChange = { addressInput = it },
-                            label = { Text("Enter address") },
-                            singleLine = true
-                        )
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                if (addressInput.isNotBlank()) {
-                                    mapViewModel.searchAddressUsingGeocoder(addressInput)
-                                }
-                                showManualSearchDialog = false
-                            }
-                        ) {
-                            Text("Search")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showManualSearchDialog = false }) {
-                            Text("Cancel")
-                        }
-                    }
+                        .padding(16.dp)
                 )
             }
         }
+    }
+
+    /* ---------- address input dialog ---------- */
+    if (showAddressDialog) {
+        var text by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showAddressDialog = false },
+            title            = { Text("Search Address") },
+            text             = {
+                OutlinedTextField(
+                    value       = text,
+                    onValueChange = { text = it },
+                    label       = { Text("Enter address") },
+                    singleLine  = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (text.isNotBlank()) {
+                            coroutine.launch {
+                                mapViewModel.searchAddressUsingGeocoder(text)
+                            }
+                        }
+                        showAddressDialog = false
+                    }
+                ) { Text("Search") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddressDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 
-
-
+/* ---------- marker composable (unchanged) ---------- */
 @Composable
 fun ChargerMarker(
-    charger: Charger,
-    isFavorite: Boolean,
-    onClick: () -> Unit
+    charger:     Charger,
+    isFavorite:  Boolean,
+    onClick:     () -> Unit
 ) {
-    // Different marker color for favorite chargers
-    val markerColor = if (isFavorite) {
-        BitmapDescriptorFactory.HUE_ROSE
-    } else {
-        BitmapDescriptorFactory.HUE_GREEN
-    }
+    val hue = if (isFavorite) BitmapDescriptorFactory.HUE_ROSE
+    else           BitmapDescriptorFactory.HUE_GREEN
 
     Marker(
-        state = MarkerState(position = charger.getLatLng()),
+        state = MarkerState(charger.getLatLng()),
         title = charger.name,
-        snippet = "Tap for details",
-        icon = BitmapDescriptorFactory.defaultMarker(markerColor),
-        onClick = {
-            onClick()
-            true // Consume the event
-        }
+        icon  = BitmapDescriptorFactory.defaultMarker(hue),
+        onClick = { onClick(); true }
     )
 }

@@ -15,6 +15,7 @@ interface ChargerRepository {
     fun getChargersInBounds(bounds: LatLngBounds): Flow<List<Charger>>
 
     suspend fun getChargerById(id: String): NetworkResult<Charger>
+    suspend fun getAllChargersSync(): NetworkResult<List<Charger>>
 
     fun getFavoriteChargersForUser(userId: String):Flow<List<Charger>>
 
