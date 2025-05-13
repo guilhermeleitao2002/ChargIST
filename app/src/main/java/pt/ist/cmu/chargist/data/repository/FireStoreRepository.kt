@@ -270,7 +270,10 @@ class FirestoreChargerRepository(
             }
             println("Charger ${charger.name} matchesPrice=$matchesPrice (maxPrice=$maxPrice)")
 
-            matchesAvailability && matchesPrice
+            val matchesSpeed = chargingSpeed == null || slots.any { it.speed == chargingSpeed }
+            println("Charger ${charger.name} matchesSpeed=$matchesSpeed (chargingSpeed=$chargingSpeed)")
+
+            matchesAvailability && matchesPrice && matchesSpeed
         }
 
         println("Filtered to ${filteredChargers.size} chargers")

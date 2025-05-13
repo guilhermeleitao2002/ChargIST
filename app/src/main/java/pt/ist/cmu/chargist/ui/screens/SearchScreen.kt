@@ -225,6 +225,59 @@ fun SearchScreen(
                     )
                 }
 
+                // Charging Speed Filter
+                var selectedSpeed by remember { mutableStateOf(searchState.chargingSpeed) }
+                var expanded by remember { mutableStateOf(false) }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text("Charging Speed", modifier = Modifier.padding(bottom = 8.dp))
+                    Box {
+                        OutlinedTextField(
+                            value = selectedSpeed?.name ?: "All Speeds",
+                            onValueChange = {},
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = true,
+                            trailingIcon = {
+                                IconButton(onClick = { expanded = true }) {
+                                    Icon(
+                                        if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                                        contentDescription = "Toggle dropdown"
+                                    )
+                                }
+                            }
+                        )
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("All Speeds") },
+                                onClick = {
+                                    selectedSpeed = null
+                                    viewModel.updateSearchChargingSpeed(null)
+                                    scope.launch { viewModel.searchChargers() }
+                                    expanded = false
+                                }
+                            )
+                            ChargingSpeed.entries.forEach { speed ->
+                                DropdownMenuItem(
+                                    text = { Text(speed.name) },
+                                    onClick = {
+                                        selectedSpeed = speed
+                                        viewModel.updateSearchChargingSpeed(speed)
+                                        scope.launch { viewModel.searchChargers() }
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Price Filter
                 var maxPrice by remember { mutableStateOf(searchState.maxPrice ?: 1.0) }
                 Column(
