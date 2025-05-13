@@ -70,11 +70,6 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(mapState.searchedLocation) {
-        mapState.searchedLocation?.let { location ->
-            cameraPosState.animate(CameraUpdateFactory.newLatLngZoom(location, 15f))
-        }
-    }
 
     var showAddressDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
