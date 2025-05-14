@@ -14,12 +14,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import pt.ist.cmu.chargist.ui.navigation.ChargISTNavigation
 import pt.ist.cmu.chargist.ui.theme.ChargISTTheme
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Keep splash screen visible until app is ready
+        splashScreen.setKeepOnScreenCondition { true }
         enableEdgeToEdge()
         setContent {
+            splashScreen.setKeepOnScreenCondition { false }
             ChargISTTheme {
                 ChargISTApp()
             }
