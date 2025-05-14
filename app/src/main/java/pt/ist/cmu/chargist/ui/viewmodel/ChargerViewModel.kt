@@ -1,6 +1,7 @@
 package pt.ist.cmu.chargist.ui.viewmodel
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.maps.model.LatLng
@@ -12,6 +13,7 @@ import pt.ist.cmu.chargist.data.repository.ImageStorageRepository
 import pt.ist.cmu.chargist.util.NetworkResult
 import java.util.UUID
 import pt.ist.cmu.chargist.data.repository.AuthRepository
+import pt.ist.cmu.chargist.data.repository.PlacesRepository
 
 /* ───────────── state holders ───────────── */
 
@@ -50,7 +52,8 @@ data class SearchState(
 class ChargerViewModel(
     private val chargerRepository: ChargerRepository,
     private val authRepository: AuthRepository,
-    private val imageRepository: ImageStorageRepository
+    private val imageRepository: ImageStorageRepository,
+    private val placesRepository: PlacesRepository
 ) : ViewModel() {
 
     /* ---------- state ---------- */
@@ -76,6 +79,35 @@ class ChargerViewModel(
                 is NetworkResult.Success -> ChargerDetailState(result.data, isLoading = false)
                 is NetworkResult.Error -> ChargerDetailState(error = result.message)
                 NetworkResult.Loading -> ChargerDetailState(isLoading = true)
+            }
+        }
+    }
+
+    fun getNearbyPlaces(latLng: LatLng, radius: Int = 100) {
+        viewModelScope.launch {
+            try {
+                Log.d("ChargerViewModel", "Loading nearby places at $latLng")
+                val currentDetails = _detail.value.chargerWithDetails ?: return@launch
+
+                // Get nearby services
+                val nearbyServices = placesRepository.getNearbyPlaces(latLng, radius)
+                Log.d("ChargerViewModel", "Got ${nearbyServices.size} nearby services")
+
+                // Set the chargerId for all services
+                val servicesWithChargerId = nearbyServices.map {
+                    it.copy(chargerId = currentDetails.charger.id)
+                }
+
+                // Update the state
+                val updatedDetails = currentDetails.copy(
+                    nearbyServices = servicesWithChargerId
+                )
+
+                _detail.value = _detail.value.copy(chargerWithDetails = updatedDetails)
+                Log.d("ChargerViewModel", "Updated charger details with nearby services")
+            } catch (e: Exception) {
+                Log.e("ChargerViewModel", "Error loading nearby services: ${e.message}", e)
+                _detail.value = _detail.value.copy(error = "Failed to load nearby services: ${e.message}")
             }
         }
     }
@@ -195,7 +227,7 @@ class ChargerViewModel(
         /* 6 · write to Firestore --------------------------------------------- */
         when (val res = chargerRepository.createCharger(
             name = s.name,
-            location = s.location!!,
+            location = s.location,
             imageData = base64,
             userId = uid,
             chargingSlots = slots

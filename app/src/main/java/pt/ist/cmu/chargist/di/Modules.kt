@@ -8,6 +8,7 @@ import androidx.room.Room
 /* Google Play services & Firebase */
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.libraries.places.api.Places
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -37,6 +38,7 @@ import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
 import java.util.concurrent.TimeUnit
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import pt.ist.cmu.chargist.data.repository.ImageStorageRepository
+import pt.ist.cmu.chargist.data.repository.PlacesRepository
 
 /* ───────────────────── APP‑WIDE SINGLETONS ───────────────────── */
 
@@ -116,6 +118,14 @@ val firebaseModule = module {
 
     /* Charger repository – pure Firestore implementation */
     single<ChargerRepository> { FirestoreChargerRepository(get()) }
+
+    single {
+        val context = androidContext()
+        Places.initialize(context, "AIzaSyAU_8dfYDNi471YCS6ja-gZ8Clv4iM7jB4")
+        Places.createClient(context)
+    }
+
+    single { PlacesRepository(get()) }
 }
 
 
@@ -136,7 +146,8 @@ val viewModelModule = module {
         ChargerViewModel(
             get(),   // ChargerRepository
             get(),   // UserRepository
-            get()    // ImageStorageRepository  ← add this
+            get(),    // ImageStorageRepository  ← add this
+            get()    // PlacesRepository
         )
     }
 }
