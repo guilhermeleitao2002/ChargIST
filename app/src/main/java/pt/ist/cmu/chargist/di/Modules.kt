@@ -24,8 +24,6 @@ import org.koin.dsl.module
 
 /* Project – data layer */
 import pt.ist.cmu.chargist.data.ChargISTDatabase
-import pt.ist.cmu.chargist.data.api.ChargISTApi
-import pt.ist.cmu.chargist.data.api.ChargISTApiService
 import pt.ist.cmu.chargist.data.repository.AuthRepository
 import pt.ist.cmu.chargist.data.repository.ChargerRepository
 import pt.ist.cmu.chargist.data.repository.FirestoreChargerRepository     // ← NEW
@@ -86,11 +84,7 @@ val networkModule = module {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
-
-    single { get<Retrofit>().create(ChargISTApiService::class.java) }
-    single { ChargISTApi(get()) }
 }
-
 /* ───────────────────────────── FIREBASE  ──────────────────────────────── */
 val firebaseModule = module {
 
