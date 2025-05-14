@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +23,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.LocalGasStation
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Place
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.android.gms.maps.model.CameraPosition
@@ -38,6 +41,7 @@ import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +60,17 @@ fun ChargerDetailScreen(
     val detailState by chargerViewModel.chargerDetailState.collectAsState()
     val chargerWithDetails = detailState.chargerWithDetails
     val userId = FirebaseAuth.getInstance().currentUser?.uid
+    var nearbyServicesLoaded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(chargerWithDetails?.charger?.id) {
+        chargerWithDetails?.charger?.let { charger ->
+            if (!nearbyServicesLoaded) {
+                val location = LatLng(charger.latitude, charger.longitude)
+                chargerViewModel.loadNearbyPlaces(location)
+                nearbyServicesLoaded = true
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -242,7 +257,49 @@ fun ChargerDetailScreen(
                         }
                     }
 
-                    item { Spacer(Modifier.height(80.dp)) }
+                    sectionHeader("Nearby Services")
+                    if (chargerWithDetails?.nearbyServices?.isEmpty() != false) {
+                        item { EmptyLine("Looking for nearby services...") }
+                    } else {
+                        items(chargerWithDetails.nearbyServices) { service ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Icon based on service type
+                                val icon = when {
+                                    service.type.contains("RESTAURANT") || service.type.contains("CAFE") ->
+                                        Icons.Default.Restaurant
+                                    service.type.contains("GAS_STATION") -> Icons.Default.LocalGasStation
+                                    service.type.contains("STORE") || service.type.contains("SHOP") ->
+                                        Icons.Default.ShoppingCart
+                                    else -> Icons.Default.Place
+                                }
+
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
+                                Column {
+                                    Text(text = service.name, style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        text = "${service.distance}m away",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        item { Spacer(Modifier.height(80.dp)) }
+                    }
                 }
             }
         }
@@ -288,7 +345,7 @@ private fun LazyListScope.sectionHeader(
                 onAction?.let {
                     IconButton(onClick = onAction) {
                         Icon(
-                            imageVector = Icons.Default.List,
+                            imageVector = Icons.AutoMirrored.Filled.List,
                             contentDescription = "View All $title"
                         )
                     }

@@ -26,7 +26,7 @@ import org.koin.dsl.module
 import pt.ist.cmu.chargist.data.ChargISTDatabase
 import pt.ist.cmu.chargist.data.repository.AuthRepository
 import pt.ist.cmu.chargist.data.repository.ChargerRepository
-import pt.ist.cmu.chargist.data.repository.FirestoreChargerRepository     // ← NEW
+import pt.ist.cmu.chargist.data.repository.FirestoreChargerRepository
 import pt.ist.cmu.chargist.data.repository.FirebaseAuthRepository
 
 /* Project – view‑models */
@@ -37,6 +37,7 @@ import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
 import java.util.concurrent.TimeUnit
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import pt.ist.cmu.chargist.data.repository.ImageStorageRepository
+import pt.ist.cmu.chargist.data.repository.NearbyPlacesRepository
 
 /* ───────────────────── APP‑WIDE SINGLETONS ───────────────────── */
 
@@ -83,6 +84,10 @@ val networkModule = module {
             .client(get())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+    }
+
+    single {
+        NearbyPlacesRepository()
     }
 }
 /* ───────────────────────────── FIREBASE  ──────────────────────────────── */

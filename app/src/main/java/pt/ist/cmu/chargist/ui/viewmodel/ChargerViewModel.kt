@@ -1,6 +1,7 @@
 package pt.ist.cmu.chargist.ui.viewmodel
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.maps.model.LatLng
@@ -12,6 +13,7 @@ import pt.ist.cmu.chargist.data.repository.ImageStorageRepository
 import pt.ist.cmu.chargist.util.NetworkResult
 import java.util.UUID
 import pt.ist.cmu.chargist.data.repository.AuthRepository
+import pt.ist.cmu.chargist.data.repository.NearbyPlacesRepository
 
 /* ───────────── state holders ───────────── */
 
@@ -66,6 +68,8 @@ class ChargerViewModel(
 
     private val _allChargers = MutableStateFlow<List<Charger>>(emptyList())
     val allChargers: StateFlow<List<Charger>> = _allChargers.asStateFlow()
+
+    private val nearbyPlacesRepository = NearbyPlacesRepository()
 
     /* ---------- details ---------- */
 
@@ -268,5 +272,38 @@ class ChargerViewModel(
         viewModelScope.launch {
             val res = chargerRepository.reportDamage(slotId, damaged)
             if (res is NetworkResult.Success) loadChargerDetails(res.data.chargerId)
+    }
+
+    /* ---------- nearby places ---------- */
+
+    fun loadNearbyPlaces(location: LatLng) {
+        val currentDetails = _detail.value.chargerWithDetails ?: return
+
+        viewModelScope.launch {
+            try {
+                val places = nearbyPlacesRepository.getNearbyPlaces(location)
+
+                // Convert NearbyPlace objects to NearbyService objects
+                val services = places.map { place ->
+                    NearbyService(
+                        id = place.id,
+                        chargerId = currentDetails.charger.id,
+                        name = place.name,
+                        type = place.placeType.uppercase(),
+                        distance = place.distance
+                    )
+                }
+
+                // Update state with the new nearby services
+                if (services.isNotEmpty()) {
+                    val updatedDetails = currentDetails.copy(
+                        nearbyServices = services
+                    )
+                    _detail.value = _detail.value.copy(chargerWithDetails = updatedDetails)
+                }
+            } catch (e: Exception) {
+                Log.e("ChargerViewModel", "Error loading nearby places: ${e.message}")
+            }
         }
+    }
 }
