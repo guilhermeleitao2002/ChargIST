@@ -1,32 +1,29 @@
 package pt.ist.cmu.chargist.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.LocalGasStation
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Place
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.android.gms.maps.model.CameraPosition
@@ -36,13 +33,10 @@ import com.google.maps.android.compose.*
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.ChargingSlot
 import pt.ist.cmu.chargist.data.model.ChargingSpeed
+import pt.ist.cmu.chargist.data.model.NearbyService
 import pt.ist.cmu.chargist.data.repository.ImageCodec
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Add
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +45,7 @@ fun ChargerDetailScreen(
     onBackClick: () -> Unit,
     onGoToMap: () -> Unit,
     onViewSlotDetails: (String) -> Unit,
-    onAddChargingSlot: (String) -> Unit, // Add this parameter
+    onAddChargingSlot: (String) -> Unit,
     chargerViewModel: ChargerViewModel = koinViewModel(),
     mapViewModel: MapViewModel
 ) {
@@ -109,7 +103,7 @@ fun ChargerDetailScreen(
                                 chargerWithDetails.charger.longitude
                             )
                         )
-                        onGoToMap()            // <- just pop, no coroutine / delay needed
+                        onGoToMap()
                     }
                 ) {
                     Icon(
@@ -133,172 +127,290 @@ fun ChargerDetailScreen(
                         .padding(innerPad)
                 ) {
                     item {
-                        val photoData = chargerWithDetails.charger.imageData
-                        if (photoData != null) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(ImageCodec.base64ToBytes(photoData))
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "Charger photo",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                                contentAlignment = Alignment.Center
-                            ) { Text("No image available") }
-                        }
+                        // Image and Map - Always shown at the top
+                        HeaderSection(chargerWithDetails)
 
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        val loc = LatLng(
-                            chargerWithDetails.charger.latitude,
-                            chargerWithDetails.charger.longitude
+                        Divider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                         )
-                        val cam = rememberCameraPositionState {
-                            position = CameraPosition.fromLatLngZoom(loc, 15f)
-                        }
-                        GoogleMap(
+                    }
+
+                    // Main "Charging Slots" section header
+                    item {
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(150.dp),
-                            cameraPositionState = cam,
-                            properties = MapProperties(isMyLocationEnabled = false),
-                            uiSettings = MapUiSettings(
-                                zoomControlsEnabled = false,
-                                scrollGesturesEnabled = false,
-                                zoomGesturesEnabled = false,
-                                rotationGesturesEnabled = false,
-                                tiltGesturesEnabled = false,
-                                compassEnabled = false,
-                                mapToolbarEnabled = false
-                            )
-                        ) { Marker(MarkerState(loc), title = chargerWithDetails.charger.name) }
-                    }
-
-                    sectionHeader("Charging Slots", onAddAction = { onAddChargingSlot(chargerId) })
-                    if (chargerWithDetails.chargingSlots.isEmpty()) {
-                        item { EmptyLine("No charging slots available") }
-                    } else {
-                        // Group by charging speed
-                        val fastSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.FAST }
-                        val mediumSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.MEDIUM }
-                        val slowSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.SLOW }
-
-                        // Display fast charging slots
-                        if (fastSlots.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "Fast Charging",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                            items(fastSlots) { slot ->
-                                ChargingSlotItem(slot = slot) {
-                                    onViewSlotDetails(slot.id)
-                                }
-                            }
-                        }
-
-                        // Display medium charging slots
-                        if (mediumSlots.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "Medium Charging",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                            items(mediumSlots) { slot ->
-                                ChargingSlotItem(slot = slot) {
-                                    onViewSlotDetails(slot.id)
-                                }
-                            }
-                        }
-
-                        // Display slow charging slots
-                        if (slowSlots.isNotEmpty()) {
-                            item {
-                                Text(
-                                    text = "Slow Charging",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                            items(slowSlots) { slot ->
-                                ChargingSlotItem(slot = slot) {
-                                    onViewSlotDetails(slot.id)
-                                }
-                            }
-                        }
-                    }
-
-                    sectionHeader("Payment Methods")
-                    if (chargerWithDetails.paymentSystems.isEmpty()) {
-                        item { EmptyLine("No payment information available") }
-                    } else {
-                        items(chargerWithDetails.paymentSystems) {
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
                             Text(
-                                it.name,
+                                text = "Charging Slots",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            IconButton(onClick = { onAddChargingSlot(chargerId) }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = "Add Charging Slot",
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // Collapsible section for Fast Charging slots
+                    val fastSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.FAST }
+                    if (fastSlots.isNotEmpty()) {
+                        item {
+                            CollapsibleSection(
+                                title = "Fast Charging",
+                                items = fastSlots
+                            ) { slot ->
+                                ChargingSlotItem(slot = slot) {
+                                    onViewSlotDetails(slot.id)
+                                }
+                            }
+                        }
+                    }
+
+                    // Collapsible section for Medium Charging slots
+                    val mediumSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.MEDIUM }
+                    if (mediumSlots.isNotEmpty()) {
+                        item {
+                            CollapsibleSection(
+                                title = "Medium Charging",
+                                items = mediumSlots
+                            ) { slot ->
+                                ChargingSlotItem(slot = slot) {
+                                    onViewSlotDetails(slot.id)
+                                }
+                            }
+                        }
+                    }
+
+                    // Collapsible section for Slow Charging slots
+                    val slowSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.SLOW }
+                    if (slowSlots.isNotEmpty()) {
+                        item {
+                            CollapsibleSection(
+                                title = "Slow Charging",
+                                items = slowSlots
+                            ) { slot ->
+                                ChargingSlotItem(slot = slot) {
+                                    onViewSlotDetails(slot.id)
+                                }
+                            }
+                        }
+                    }
+
+                    // Additional sections for payment and services
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Divider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    // Collapsible section for Payment Methods
+                    item {
+                        CollapsibleSection(
+                            title = "Payment Methods",
+                            items = chargerWithDetails.paymentSystems,
+                            emptyMessage = "No payment information available"
+                        ) { payment ->
+                            Text(
+                                payment.name,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
                         }
                     }
 
-                    sectionHeader("Nearby Services")
-                    if (chargerWithDetails?.nearbyServices?.isEmpty() != false) {
-                        item { EmptyLine("Looking for nearby services...") }
-                    } else {
-                        items(chargerWithDetails.nearbyServices) { service ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Icon based on service type
-                                val icon = when {
-                                    service.type.contains("RESTAURANT") || service.type.contains("CAFE") ->
-                                        Icons.Default.Restaurant
-                                    service.type.contains("GAS_STATION") -> Icons.Default.LocalGasStation
-                                    service.type.contains("STORE") || service.type.contains("SHOP") ->
-                                        Icons.Default.ShoppingCart
-                                    else -> Icons.Default.Place
-                                }
-
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-
-                                Spacer(modifier = Modifier.width(16.dp))
-
-                                Column {
-                                    Text(text = service.name, style = MaterialTheme.typography.titleMedium)
-                                    Text(
-                                        text = "${service.distance}m away",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                    // Collapsible section for Nearby Services
+                    item {
+                        CollapsibleSection(
+                            title = "Nearby Services",
+                            items = chargerWithDetails.nearbyServices,
+                            emptyMessage = if (chargerWithDetails.nearbyServices.isEmpty())
+                                "Looking for nearby services..." else "No nearby services found"
+                        ) { service ->
+                            NearbyServiceItem(service)
                         }
+                    }
 
-                        item { Spacer(Modifier.height(80.dp)) }
+                    item { Spacer(Modifier.height(80.dp)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeaderSection(chargerWithDetails: pt.ist.cmu.chargist.data.model.ChargerWithDetails) {
+    // Image Section
+    val photoData = chargerWithDetails.charger.imageData
+    if (photoData != null) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(ImageCodec.base64ToBytes(photoData))
+                .crossfade(true)
+                .build(),
+            contentDescription = "Charger photo",
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) { Text("No image available") }
+    }
+
+    Spacer(Modifier.height(16.dp))
+
+    // Map Section
+    val loc = LatLng(
+        chargerWithDetails.charger.latitude,
+        chargerWithDetails.charger.longitude
+    )
+    val cam = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(loc, 15f)
+    }
+    GoogleMap(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(150.dp),
+        cameraPositionState = cam,
+        properties = MapProperties(isMyLocationEnabled = false),
+        uiSettings = MapUiSettings(
+            zoomControlsEnabled = false,
+            scrollGesturesEnabled = false,
+            zoomGesturesEnabled = false,
+            rotationGesturesEnabled = false,
+            tiltGesturesEnabled = false,
+            compassEnabled = false,
+            mapToolbarEnabled = false
+        )
+    ) { Marker(MarkerState(loc), title = chargerWithDetails.charger.name) }
+
+    Spacer(Modifier.height(16.dp))
+}
+
+@Composable
+private fun NearbyServiceItem(service: NearbyService) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon based on service type
+        val icon = when {
+            service.type.contains("RESTAURANT") || service.type.contains("CAFE") ->
+                Icons.Default.Restaurant
+            service.type.contains("GAS_STATION") -> Icons.Default.LocalGasStation
+            service.type.contains("STORE") || service.type.contains("SHOP") ->
+                Icons.Default.ShoppingCart
+            else -> Icons.Default.Place
+        }
+
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(32.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column {
+            Text(text = service.name, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "${service.distance}m away",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun <T> CollapsibleSection(
+    title: String,
+    items: List<T>,
+    onAddAction: (() -> Unit)? = null,
+    emptyMessage: String? = null,
+    itemContent: @Composable (T) -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val rotationState by animateFloatAsState(if (isExpanded) 180f else 0f)
+
+    Column(Modifier.padding(vertical = 8.dp)) {
+        // Section header with title and buttons
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Title on the left
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            // Buttons on the right
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Add button if onAddAction is provided
+                onAddAction?.let {
+                    IconButton(onClick = onAddAction) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = "Add $title"
+                        )
+                    }
+                }
+
+                // Chevron for expand/collapse
+                IconButton(onClick = { isExpanded = !isExpanded }) {
+                    Icon(
+                        imageVector = Icons.Default.ExpandMore,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        modifier = Modifier.rotate(rotationState)
+                    )
+                }
+            }
+        }
+
+        // Expandable content section
+        AnimatedVisibility(visible = isExpanded) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (items.isEmpty() && emptyMessage != null) {
+                    Text(
+                        emptyMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                } else {
+                    items.forEach { item ->
+                        itemContent(item)
                     }
                 }
             }
@@ -310,56 +422,6 @@ fun ChargerDetailScreen(
 private fun CenterBox(pad: PaddingValues, content: @Composable BoxScope.() -> Unit) {
     Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center, content = content)
 }
-
-private fun LazyListScope.sectionHeader(
-    title: String,
-    onAction: (() -> Unit)? = null,
-    onAddAction: (() -> Unit)? = null // Add this parameter
-) {
-    item {
-        Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleLarge
-            )
-
-            Row {
-                // Add button if onAddAction is provided
-                onAddAction?.let {
-                    IconButton(onClick = onAddAction) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = "Add $title"
-                        )
-                    }
-                }
-
-                // Original action button (if provided)
-                onAction?.let {
-                    IconButton(onClick = onAction) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.List,
-                            contentDescription = "View All $title"
-                        )
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-    }
-}
-
-@Composable
-private fun EmptyLine(text: String) =
-    Text(text, style = MaterialTheme.typography.bodyMedium,
-        modifier = Modifier.padding(horizontal = 16.dp))
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -403,7 +465,7 @@ fun ChargingSlotItem(slot: ChargingSlot, onClick: () -> Unit) {
                 )
             }
 
-            Spacer(Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
             Column {
                 Text(slot.connectorType.name, style = MaterialTheme.typography.titleMedium)
@@ -417,7 +479,7 @@ fun ChargingSlotItem(slot: ChargingSlot, onClick: () -> Unit) {
                 Text(status, style = MaterialTheme.typography.bodyMedium, color = colour)
             }
 
-            Spacer(Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(1f))
 
             Text(
                 text = "$${slot.price}/kWh",
