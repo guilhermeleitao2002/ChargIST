@@ -215,15 +215,20 @@ class FirestoreChargerRepository(
             is NetworkResult.Error   -> emit(base)
             is NetworkResult.Success -> {
                 val slots = getChargingSlotsForCharger(chargerId)
-                    .map { it.sortedBy { s -> s.speed } }       // small touch
-                    .first()                                  // one‑shot fetch
+                    .map { it.sortedBy { s -> s.speed } }
+                    .first()
+
+                // Fetch payment systems from subcollection
+                val paymentSystems = chargerDoc(chargerId).collection("paymentSystems")
+                    .get().await().toObjects(PaymentSystem::class.java)
+
                 emit(
                     NetworkResult.Success(
                         ChargerWithDetails(
                             charger        = base.data,
                             chargingSlots  = slots,
-                            nearbyServices = emptyList(),        // not yet
-                            paymentSystems = emptyList()
+                            nearbyServices = emptyList(),
+                            paymentSystems = paymentSystems  // Now including payment systems
                         )
                     )
                 )

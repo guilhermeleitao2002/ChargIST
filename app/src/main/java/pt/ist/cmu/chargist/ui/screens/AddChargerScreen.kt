@@ -325,17 +325,6 @@ fun AddChargerScreen(
                 }
             }
 
-            val nameValid = chargerCreationState.name.isNotBlank()
-            val locationValid = chargerCreationState.location != null
-            val positionsValid = (fastPositions > 0 || mediumPositions > 0 || slowPositions > 0)
-            val paymentsValid = chargerCreationState.paymentSystems.isNotEmpty()
-
-            Text(
-                "Form validation: Name: $nameValid, Location: $locationValid, Positions: $positionsValid, Payments: $paymentsValid",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (!paymentsValid) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             Spacer(Modifier.height(32.dp))
         }
     }
