@@ -31,6 +31,7 @@ data class ChargerCreationState(
     val fastPositions: Int = 0,
     val mediumPositions: Int = 0,
     val slowPositions: Int = 0,
+    val paymentSystems: List<PaymentSystem> = emptyList(),
     val isSubmitting: Boolean = false,
     val error: String? = null,
     val isSuccess: Boolean = false
@@ -122,6 +123,7 @@ class ChargerViewModel(
         /* 1 · quick validation ------------------------------------------------ */
         if (s.name.isBlank()) { _create.value = s.copy(error = "Name cannot be empty"); return@launch }
         if (s.location == null) { _create.value = s.copy(error = "Please select a location"); return@launch }
+        if (s.paymentSystems.isEmpty()) { _create.value = s.copy(error = "Please select at least one payment method"); return@launch }
 
         _create.value = s.copy(isSubmitting = true, error = null)
 
@@ -202,7 +204,8 @@ class ChargerViewModel(
             location = s.location!!,
             imageData = base64,
             userId = uid,
-            chargingSlots = slots
+            chargingSlots = slots,
+            paymentSystems = s.paymentSystems // Pass payment systems to repository
         )) {
             is NetworkResult.Success -> _create.value = ChargerCreationState(isSuccess = true)
             is NetworkResult.Error -> _create.value = s.copy(isSubmitting = false, error = res.message)
@@ -305,5 +308,37 @@ class ChargerViewModel(
                 Log.e("ChargerViewModel", "Error loading nearby places: ${e.message}")
             }
         }
+    }
+
+    /* ---------- payment systems ---------- */
+    fun updatePaymentSystems(systems: List<PaymentSystem>) {
+        // Log the current state before update
+        Log.d("ChargerViewModel", "Current payment systems: ${_create.value.paymentSystems.joinToString(", ") { it.name }}")
+
+        // Log what we're updating to
+        Log.d("ChargerViewModel", "Updating to: ${systems.joinToString(", ") { it.name }}")
+
+        // Update the state
+        _create.update { it.copy(paymentSystems = systems) }
+
+        // Log the state after update to confirm it worked
+        Log.d("ChargerViewModel", "After update: ${_create.value.paymentSystems.joinToString(", ") { it.name }}")
+    }
+
+    fun togglePaymentSystem(system: PaymentSystem, isSelected: Boolean) {
+        val currentSystems = _create.value.paymentSystems.toMutableList()
+
+        if (isSelected && !currentSystems.any { it.id == system.id }) {
+            // Add the system if it's not already there
+            currentSystems.add(system)
+        } else if (!isSelected) {
+            // Remove the system
+            currentSystems.removeAll { it.id == system.id }
+        }
+
+        Log.d("ChargerViewModel", "Toggled ${system.name} to $isSelected. Now have ${currentSystems.size} systems")
+
+        // Update the state with the new list
+        _create.update { it.copy(paymentSystems = currentSystems) }
     }
 }

@@ -16,7 +16,11 @@ enum class ConnectorType  { CCS2, TYPE2 }
 
 /* ───────────── simple model ───────────── */
 
-data class PaymentSystem(val id: String = "", val name: String = "")
+data class PaymentSystem(
+    val id: String = "",
+    val name: String = "",
+    val iconResId: Int? = null
+)
 
 /* ───────────── Firestore‑ / Room‑backed entities ─────────────
    → every property has a default value        (Firestore needs this)
@@ -37,6 +41,7 @@ data class Charger(
     val createdBy: String = "",
     val createdAt: Long = 0L,
     val updatedAt: Long? = 0L,
+    val paymentSystems: List<PaymentSystem> = emptyList(),
 
     // Add a field for direct slot storage
 //    @Ignore // This field won't be stored in Room, only in Firestore

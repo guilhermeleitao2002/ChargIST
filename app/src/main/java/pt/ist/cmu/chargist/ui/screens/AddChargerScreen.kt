@@ -1,5 +1,6 @@
 package pt.ist.cmu.chargist.ui.screens
 
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,14 +15,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -32,6 +35,8 @@ import com.google.maps.android.compose.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import pt.ist.cmu.chargist.R
+import pt.ist.cmu.chargist.data.model.PaymentSystem
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import com.google.android.libraries.places.api.model.AutocompletePrediction
@@ -54,6 +59,19 @@ fun AddChargerScreen(
     var fastPositions by remember { mutableIntStateOf(0) }
     var mediumPositions by remember { mutableIntStateOf(0) }
     var slowPositions by remember { mutableIntStateOf(0) }
+
+    // Available payment systems
+    val availablePaymentSystems = remember {
+        listOf(
+            PaymentSystem(id = "visa", name = "VISA"),
+            PaymentSystem(id = "mastercard", name = "Mastercard"),
+            PaymentSystem(id = "mbway", name = "MBWay"),
+            PaymentSystem(id = "googlepay", name = "Google Pay")
+        )
+    }
+
+    // Track selected payment systems
+    val selectedPaymentSystems = remember { mutableStateListOf<PaymentSystem>() }
 
     val defaultLocation = mapState.currentLocation ?: LatLng(38.7369, -9.1366)
     val cameraPosState = rememberCameraPositionState {
@@ -86,6 +104,17 @@ fun AddChargerScreen(
             selectedLocation = location
             chargerViewModel.updateChargerCreationLocation(location)
         }
+    }
+
+    // Initial setup to ensure we're tracking the payment systems
+    LaunchedEffect(Unit) {
+        chargerViewModel.updatePaymentSystems(selectedPaymentSystems.toList())
+    }
+
+    // Update the ViewModel whenever selected payment systems change
+    LaunchedEffect(selectedPaymentSystems.size) {
+        chargerViewModel.updatePaymentSystems(selectedPaymentSystems.toList())
+        Log.d("AddChargerScreen", "Payment systems updated: ${selectedPaymentSystems.size} selected")
     }
 
     Scaffold(
@@ -209,15 +238,85 @@ fun AddChargerScreen(
             Spacer(Modifier.height(8.dp))
             ChargingPositionSelector("Slow Charging", slowPositions) { slowPositions = it; chargerViewModel.updateSlowPositions(it) }
 
+            Spacer(Modifier.height(24.dp))
+
+            // Payment Systems Section
+            Text("Payment Methods", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                "Select the payment methods accepted at this charging station:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+// Payment system options with checkboxes and logos
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outline,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(16.dp)
+            ) {
+                availablePaymentSystems.forEach { paymentSystem ->
+                    // Check directly against ViewModel state
+                    val isSelected = chargerCreationState.paymentSystems.any { it.id == paymentSystem.id }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clickable {
+                                // Toggle directly in ViewModel
+                                chargerViewModel.togglePaymentSystem(paymentSystem, !isSelected)
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = { checked ->
+                                // Toggle directly in ViewModel
+                                chargerViewModel.togglePaymentSystem(paymentSystem, checked)
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Payment system logo
+                        paymentSystem.iconResId?.let { resId ->
+                            Icon(
+                                painter = painterResource(id = resId),
+                                contentDescription = paymentSystem.name,
+                                modifier = Modifier.size(32.dp),
+                                tint = Color.Unspecified // Use original colors
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Text(
+                            text = paymentSystem.name,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+
             Spacer(Modifier.height(32.dp))
 
             Button(
                 onClick = { chargerViewModel.createCharger() },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !chargerCreationState.isSubmitting &&
+                enabled = (!chargerCreationState.isSubmitting &&
                         chargerCreationState.name.isNotBlank() &&
                         chargerCreationState.location != null &&
-                        (fastPositions > 0 || mediumPositions > 0 || slowPositions > 0)
+                        (fastPositions > 0 || mediumPositions > 0 || slowPositions > 0) &&
+                        chargerCreationState.paymentSystems.isNotEmpty()) // Use ViewModel state for validation
             ) {
                 if (chargerCreationState.isSubmitting) {
                     CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
@@ -225,6 +324,17 @@ fun AddChargerScreen(
                     Text("Add Charging Station")
                 }
             }
+
+            val nameValid = chargerCreationState.name.isNotBlank()
+            val locationValid = chargerCreationState.location != null
+            val positionsValid = (fastPositions > 0 || mediumPositions > 0 || slowPositions > 0)
+            val paymentsValid = chargerCreationState.paymentSystems.isNotEmpty()
+
+            Text(
+                "Form validation: Name: $nameValid, Location: $locationValid, Positions: $positionsValid, Payments: $paymentsValid",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (!paymentsValid) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(Modifier.height(32.dp))
         }

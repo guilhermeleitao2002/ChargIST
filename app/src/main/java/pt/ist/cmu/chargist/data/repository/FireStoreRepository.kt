@@ -69,7 +69,8 @@ class FirestoreChargerRepository(
         location: LatLng,
         imageData: String?,
         userId: String,
-        chargingSlots: List<ChargingSlot>
+        chargingSlots: List<ChargingSlot>,
+        paymentSystems: List<PaymentSystem>
     ): NetworkResult<Charger> {
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
@@ -93,6 +94,12 @@ class FirestoreChargerRepository(
             // Create individual slot documents in the subcollection
             for (slot in chargingSlots) {
                 slotsCol(id).document(slot.id).set(slot).await()
+            }
+
+            // Create payment systems subcollection
+            val paymentSystemsCol = chargerDoc(id).collection("paymentSystems")
+            for (paymentSystem in paymentSystems) {
+                paymentSystemsCol.document(paymentSystem.id).set(paymentSystem).await()
             }
 
             NetworkResult.Success(charger)

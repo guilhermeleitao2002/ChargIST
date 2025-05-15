@@ -35,7 +35,8 @@ interface ChargerRepository {
         location: LatLng,
         imageData: String?,
         userId: String,
-        chargingSlots: List<ChargingSlot> = emptyList()
+        chargingSlots: List<ChargingSlot> = emptyList(),
+        paymentSystems: List<PaymentSystem> = emptyList()
     ): NetworkResult<Charger>
 
     suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean): NetworkResult<Charger>
