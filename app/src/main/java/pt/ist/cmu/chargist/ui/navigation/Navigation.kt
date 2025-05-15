@@ -121,3 +121,8 @@ fun ChargISTNavigation() {
         }
     }
 }
+
+@Composable
+fun AddChargerScreen(onBackClick: () -> Boolean, onSuccess: () -> Boolean) {
+    TODO("Not yet implemented")
+}

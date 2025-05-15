@@ -8,37 +8,52 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.ChargingSpeed
+import pt.ist.cmu.chargist.data.model.PaymentSystem
 import pt.ist.cmu.chargist.data.repository.ImageCodec
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
+import androidx.compose.material3.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     onBackClick: () -> Unit,
     onChargerClick: (String) -> Unit,
-    viewModel: ChargerViewModel = koinViewModel()
+    viewModel: ChargerViewModel = koinViewModel(),
+    userLocation: LatLng? = null
 ) {
     val searchState by viewModel.searchState.collectAsState()
     var showFilters by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val bottomSheetState = rememberModalBottomSheetState()
+
+    val availablePaymentSystems = listOf(
+        PaymentSystem(id = "visa", name = "VISA"),
+        PaymentSystem(id = "mastercard", name = "Mastercard"),
+        PaymentSystem(id = "mbway", name = "MBWay"),
+        PaymentSystem(id = "googlepay", name = "Google Pay")
+    )
+
+    var selectedPaymentSystems by remember { mutableStateOf(searchState.paymentSystems ?: emptyList()) }
+
+    LaunchedEffect(userLocation) {
+        viewModel.updateUserLocation(userLocation)
+    }
 
     // Debounce the search query
     LaunchedEffect(searchState.query) {
@@ -199,12 +214,62 @@ fun SearchScreen(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                Text(
-                    "Filters",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        "Filters",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+
+                    Spacer(modifier = Modifier.width(100.dp))
+
+                    var expandedSorter by remember { mutableStateOf(false) }
+                    TextField(
+                        value = when (searchState.sortBy.lowercase()) {
+                            "distance" -> "Sort by Distance"
+                            "travel_time" -> "Sort by Travel Time"
+                            else -> "Sort by"
+                        },
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = {
+                            IconButton(onClick = { expandedSorter = true }) {
+                                Icon(
+                                    if (expandedSorter) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                                    contentDescription = "Toggle dropdown"
+                                )
+                            }
+                        }
+                    )
+                    DropdownMenu(
+                        expanded = expandedSorter,
+                        onDismissRequest = { expandedSorter = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Distance") },
+                            onClick = {
+                                viewModel.updateSearchSortBy("distance")
+                                scope.launch { viewModel.searchChargers() }
+                                expandedSorter = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Travel Time") },
+                            onClick = {
+                                viewModel.updateSearchSortBy("travel_time")
+                                scope.launch { viewModel.searchChargers() }
+                                expandedSorter = false
+                            }
+                        )
+                    }
+                }
 
                 // Availability Filter
                 var showAvailableOnly by remember { mutableStateOf(searchState.isAvailable ?: false) }
@@ -296,6 +361,41 @@ fun SearchScreen(
                         valueRange = 0f..1f,
                         steps = 19 // Steps of 0.05 between 0 and 1 (20 intervals)
                     )
+                }
+
+                // Payment Systems Filter
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text("Payment Methods", modifier = Modifier.padding(bottom = 8.dp))
+                    availablePaymentSystems.forEach { paymentSystem ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newSelection = if (selectedPaymentSystems.contains(paymentSystem)) {
+                                        selectedPaymentSystems - paymentSystem
+                                    } else {
+                                        selectedPaymentSystems + paymentSystem
+                                    }
+                                    selectedPaymentSystems = newSelection
+                                    viewModel.updateSearchPaymentSystems(
+                                        if (newSelection.isEmpty()) null else newSelection
+                                    )
+                                    scope.launch { viewModel.searchChargers() }
+                                }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = selectedPaymentSystems.contains(paymentSystem),
+                                onCheckedChange = null
+                            )
+                            Text(paymentSystem.name, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
                 }
 
                 Button(

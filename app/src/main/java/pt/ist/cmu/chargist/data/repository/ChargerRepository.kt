@@ -4,6 +4,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import kotlinx.coroutines.flow.Flow
 import pt.ist.cmu.chargist.data.model.*
+import pt.ist.cmu.chargist.data.model.PaymentSystem
 import pt.ist.cmu.chargist.util.NetworkResult
 
 /** Contract that Firestore (and future mocks) must implement */
@@ -74,6 +75,8 @@ interface ChargerRepository {
         chargingSpeed: ChargingSpeed? = null,
         isAvailable: Boolean? = null,
         maxPrice: Double? = null,
-        sortBy: String? = null
+        sortBy: String? = null,
+        paymentSystems: List<PaymentSystem>? = emptyList(),
+        userLocation: LatLng? = null
     ): NetworkResult<List<Charger>>
 }

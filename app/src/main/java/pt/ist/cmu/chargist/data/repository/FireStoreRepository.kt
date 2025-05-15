@@ -15,6 +15,10 @@ import kotlinx.coroutines.tasks.await
 import pt.ist.cmu.chargist.data.model.*
 import pt.ist.cmu.chargist.util.NetworkResult
 import java.util.UUID
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 class FirestoreChargerRepository(
     private val db: FirebaseFirestore
@@ -244,7 +248,9 @@ class FirestoreChargerRepository(
         chargingSpeed: ChargingSpeed?,
         isAvailable: Boolean?,
         maxPrice: Double?,
-        sortBy: String?
+        sortBy: String?,
+        paymentSystems: List<PaymentSystem>?,
+        userLocation: LatLng?
     ): NetworkResult<List<Charger>> = try {
         // Explicitly declare queryRef as a Query to avoid type mismatch
         var queryRef: Query = chargersCol
@@ -254,6 +260,7 @@ class FirestoreChargerRepository(
             queryRef = queryRef.whereGreaterThanOrEqualTo("name", query)
                 .whereLessThanOrEqualTo("name", query + "\uf8ff")
         }
+
 
         // Fetch chargers
         val chargers = queryRef.get().await().toObjects(Charger::class.java)
@@ -270,6 +277,17 @@ class FirestoreChargerRepository(
                 return@filter false
             }
 
+            // Fetch payment systems for this charger
+            val chargerPaymentSystems = chargerDoc(charger.id).collection("paymentSystems")
+                .get().await().toObjects(PaymentSystem::class.java)
+            println("Charger ${charger.name} has payment systems: ${chargerPaymentSystems.map { it.name }}")
+
+            // Payment Systems filter
+            val matchesPaymentSystems = paymentSystems == null || paymentSystems.any { selected ->
+                chargerPaymentSystems.any { it.id == selected.id }
+            }
+            println("Charger ${charger.name} matchesPaymentSystems=$matchesPaymentSystems (paymentSystems=${paymentSystems?.joinToString { it.name }})")
+
             // Availability filter
             val matchesAvailability = isAvailable == null || slots.any { it.isAvailable == isAvailable }
             println("Charger ${charger.name} matchesAvailability=$matchesAvailability (isAvailable=$isAvailable)")
@@ -285,20 +303,48 @@ class FirestoreChargerRepository(
             val matchesSpeed = chargingSpeed == null || slots.any { it.speed == chargingSpeed }
             println("Charger ${charger.name} matchesSpeed=$matchesSpeed (chargingSpeed=$chargingSpeed)")
 
-            matchesAvailability && matchesPrice && matchesSpeed
+            matchesAvailability && matchesPrice && matchesSpeed && matchesPaymentSystems
         }
 
         println("Filtered to ${filteredChargers.size} chargers")
 
         // Apply sorting
         val sortedChargers = when (sortBy?.lowercase()) {
-            "name" -> filteredChargers.sortedBy { it.name }
-            "distance" -> filteredChargers // Requires location-based sorting
+            "distance" -> if (userLocation != null) {
+                filteredChargers.sortedBy { charger ->
+                    calculateDistance(userLocation, LatLng(charger.latitude, charger.longitude))
+                }
+            } else filteredChargers
+            "travel_time" -> if (userLocation != null) {
+                filteredChargers.sortedBy { charger ->
+                    estimateTravelTime(
+                        calculateDistance(userLocation, LatLng(charger.latitude, charger.longitude))
+                    )
+                }
+            } else filteredChargers
             else -> filteredChargers
         }
 
         NetworkResult.Success(sortedChargers)
     } catch (t: Throwable) {
         NetworkResult.Error(t.message ?: "Search failed: ${t.message}")
+    }
+
+    private fun calculateDistance(from: LatLng, to: LatLng): Double {
+        val earthRadius = 6371000.0 // Raio da Terra em metros
+        val dLat = Math.toRadians(to.latitude - from.latitude)
+        val dLon = Math.toRadians(to.longitude - from.longitude)
+        val a = sin(dLat / 2) * sin(dLat / 2) +
+                cos(Math.toRadians(from.latitude)) * cos(Math.toRadians(to.latitude)) *
+                sin(dLon / 2) * sin(dLon / 2)
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return earthRadius * c // Distância em metros
+    }
+
+    // Estimativa simples de tempo de viagem (segundos), assumindo velocidade média de 50 km/h
+    private fun estimateTravelTime(distanceMeters: Double): Double {
+        val speedKmh = 50.0 // Velocidade média em km/h
+        val speedMs = speedKmh / 3.6 // Conversão para m/s
+        return distanceMeters / speedMs // Tempo em segundos
     }
 }

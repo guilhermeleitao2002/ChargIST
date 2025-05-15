@@ -45,8 +45,9 @@ data class SearchState(
     val sortBy: String = "distance",
     val searchResults: List<ChargerWithDetails> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
-)
+    val error: String? = null,
+    val paymentSystems: List<PaymentSystem>? = null,
+    val userLocation: LatLng? = null)
 
 /* ───────────── VM ───────────── */
 
@@ -219,6 +220,8 @@ class ChargerViewModel(
     fun updateSearchAvailability(a: Boolean?) { _search.update { it.copy(isAvailable = a) } }
     fun updateSearchMaxPrice(p: Double?) { _search.update { it.copy(maxPrice = p) } }
     fun updateSearchSortBy(sort: String) { _search.update { it.copy(sortBy = sort) } }
+    fun updateSearchPaymentSystems(systems: List<PaymentSystem>?) { _search.update { it.copy(paymentSystems = systems) } }
+    fun updateUserLocation(location: LatLng?) { _search.update { it.copy(userLocation = location) } }
 
     fun searchChargers() = viewModelScope.launch {
         val st = _search.value
@@ -229,7 +232,9 @@ class ChargerViewModel(
             chargingSpeed = st.chargingSpeed,
             isAvailable = st.isAvailable,
             maxPrice = st.maxPrice,
-            sortBy = st.sortBy
+            sortBy = st.sortBy,
+            paymentSystems = st.paymentSystems,
+            userLocation = st.userLocation
         )) {
             is NetworkResult.Success -> {
                 // Fetch slots for each charger in the search results
