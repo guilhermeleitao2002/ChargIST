@@ -44,7 +44,7 @@ interface ChargerRepository {
     suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean): NetworkResult<Charger>
 
     /* ─────── slots ─────── */
-    fun getChargingSlotsForCharger(chargerId: String): Flow<List<ChargingSlot>>
+    suspend fun getChargingSlotsForCharger(chargerId: String): List<ChargingSlot>
 
     suspend fun findChargerBySlotId(slotId: String): NetworkResult<Pair<Charger, ChargingSlot>>
 

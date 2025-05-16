@@ -241,7 +241,6 @@ class ChargerViewModel(
                 // Fetch slots for each charger in the search results
                 val resultsWithSlots = res.data.map { charger ->
                     val slots = chargerRepository.getChargingSlotsForCharger(charger.id)
-                        .first() // Fetch the first emission since it's a Flow
                     ChargerWithDetails(charger, slots, emptyList(), emptyList())
                 }
                 _search.value = st.copy(
@@ -349,7 +348,7 @@ class ChargerViewModel(
     }
 
     /* ---------- slots ---------- */
-    fun getChargingSlotsForCharger(chargerId: String): Flow<List<ChargingSlot>> =
+    suspend fun getChargingSlotsForCharger(chargerId: String): List<ChargingSlot> =
         chargerRepository.getChargingSlotsForCharger(chargerId)
 
     fun loadChargerBySlotId(slotId: String) = viewModelScope.launch {

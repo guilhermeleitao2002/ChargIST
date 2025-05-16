@@ -143,8 +143,8 @@ class FirestoreChargerRepository(
 
     /* ---------- slots ---------- */
 
-    override fun getChargingSlotsForCharger(chargerId: String): Flow<List<ChargingSlot>> =
-        slotsCol(chargerId).snapshots().map { it.toObjects(ChargingSlot::class.java) }
+    override suspend fun getChargingSlotsForCharger(chargerId: String): List<ChargingSlot> =
+        slotsCol(chargerId).get().await().toObjects(ChargingSlot::class.java)
 
     override suspend fun createChargingSlot(
         chargerId: String,
@@ -218,9 +218,10 @@ class FirestoreChargerRepository(
         when (val base = getChargerById(chargerId)) {
             is NetworkResult.Error   -> emit(base)
             is NetworkResult.Success -> {
-                val slots = getChargingSlotsForCharger(chargerId)
-                    .map { it.sortedBy { s -> s.speed } }
-                    .first()
+//                val slots = getChargingSlotsForCharger(chargerId)
+//                    .map { it.sortedBy { s -> s.speed } }
+//                    .first()
+                  val slots = getChargingSlotsForCharger(chargerId)
 
                 // Fetch payment systems from subcollection
                 val paymentSystems = chargerDoc(chargerId).collection("paymentSystems")
