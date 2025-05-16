@@ -159,8 +159,8 @@ class FirestoreChargerRepository(
             speed         = speed,
             connectorType = connectorType,
             price         = price,
-            isAvailable   = true,
-            isDamaged     = false,
+            available   = true,
+            damaged     = false,
             updatedAt     = System.currentTimeMillis()
         )
         slotsCol(chargerId).document(slotId).set(slot).await()
@@ -215,30 +215,29 @@ class FirestoreChargerRepository(
         chargerId: String
     ): Flow<NetworkResult<ChargerWithDetails>> = flow {
         emit(NetworkResult.Loading)
-        when (val base = getChargerById(chargerId)) {
-            is NetworkResult.Error   -> emit(base)
-            is NetworkResult.Success -> {
-//                val slots = getChargingSlotsForCharger(chargerId)
-//                    .map { it.sortedBy { s -> s.speed } }
-//                    .first()
-                  val slots = getChargingSlotsForCharger(chargerId)
 
-                // Fetch payment systems from subcollection
+        // Get the charger document with a real-time listener
+        chargerDoc(chargerId).snapshots().collect { snapshot ->
+            val charger = snapshot.toObject(Charger::class.java)
+                ?: return@collect emit(NetworkResult.Error("Charger not found"))
+
+            // Use a real-time listener for the charging slots
+            slotsCol(chargerId).snapshots().collect { slotsSnapshot ->
+                val slots = slotsSnapshot.toObjects(ChargingSlot::class.java)
+
+                // Fetch payment systems
                 val paymentSystems = chargerDoc(chargerId).collection("paymentSystems")
                     .get().await().toObjects(PaymentSystem::class.java)
 
-                emit(
-                    NetworkResult.Success(
-                        ChargerWithDetails(
-                            charger        = base.data,
-                            chargingSlots  = slots,
-                            nearbyServices = emptyList(),
-                            paymentSystems = paymentSystems  // Now including payment systems
-                        )
+                emit(NetworkResult.Success(
+                    ChargerWithDetails(
+                        charger = charger,
+                        chargingSlots = slots,
+                        nearbyServices = emptyList(),
+                        paymentSystems = paymentSystems
                     )
-                )
+                ))
             }
-            else -> {}
         }
     }
 
@@ -290,7 +289,7 @@ class FirestoreChargerRepository(
             println("Charger ${charger.name} matchesPaymentSystems=$matchesPaymentSystems (paymentSystems=${paymentSystems?.joinToString { it.name }})")
 
             // Availability filter
-            val matchesAvailability = isAvailable == null || slots.any { it.isAvailable == isAvailable }
+            val matchesAvailability = isAvailable == null || slots.any { it.available == isAvailable }
             println("Charger ${charger.name} matchesAvailability=$matchesAvailability (isAvailable=$isAvailable)")
 
             // Price filter

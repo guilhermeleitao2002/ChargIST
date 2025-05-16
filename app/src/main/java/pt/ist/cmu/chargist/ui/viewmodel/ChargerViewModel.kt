@@ -163,8 +163,8 @@ class ChargerViewModel(
                 speed = ChargingSpeed.FAST,
                 connectorType = ConnectorType.CCS2,
                 price = 0.50,
-                isAvailable = true,
-                isDamaged = false,
+                available = true,
+                damaged = false,
                 updatedAt = System.currentTimeMillis()
             ))
         }
@@ -178,8 +178,8 @@ class ChargerViewModel(
                 speed = ChargingSpeed.MEDIUM,
                 connectorType = ConnectorType.CCS2,
                 price = 0.35,
-                isAvailable = true,
-                isDamaged = false,
+                available = true,
+                damaged = false,
                 updatedAt = System.currentTimeMillis()
             ))
         }
@@ -193,8 +193,8 @@ class ChargerViewModel(
                 speed = ChargingSpeed.SLOW,
                 connectorType = ConnectorType.TYPE2,
                 price = 0.25,
-                isAvailable = true,
-                isDamaged = false,
+                available = true,
+                damaged = false,
                 updatedAt = System.currentTimeMillis()
             ))
         }

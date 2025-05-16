@@ -49,7 +49,6 @@ data class Charger(
     fun getLatLng(): LatLng = LatLng(latitude, longitude)
 }
 
-@IgnoreExtraProperties
 @TypeConverters(Converters::class)
 @Entity(
     tableName = "charging_slots",
@@ -65,8 +64,8 @@ data class ChargingSlot(
     val chargerId: String = "",
     val speed: ChargingSpeed = ChargingSpeed.SLOW,
     val connectorType: ConnectorType = ConnectorType.CCS2,
-    val isAvailable: Boolean = true,
-    val isDamaged: Boolean = false,
+    val available: Boolean = true,
+    val damaged: Boolean = false,
     val price: Double = 0.0,
     val updatedAt: Long = 0L
 )

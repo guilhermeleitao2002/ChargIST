@@ -187,7 +187,7 @@ fun SearchScreen(
                                             }
                                         }
 
-                                        val available = result.chargingSlots.count { it.isAvailable }
+                                        val available = result.chargingSlots.count { it.available }
                                         val total = result.chargingSlots.size
                                         Text(
                                             if (total > 0) "$available/$total slots available"

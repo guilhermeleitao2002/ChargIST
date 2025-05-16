@@ -471,8 +471,8 @@ fun ChargingSlotItem(slot: ChargingSlot, onClick: () -> Unit) {
                 Text(slot.connectorType.name, style = MaterialTheme.typography.titleMedium)
 
                 val (status, colour) = when {
-                    slot.isDamaged   -> "Damaged" to MaterialTheme.colorScheme.error
-                    slot.isAvailable -> "Available" to MaterialTheme.colorScheme.primary
+                    slot.damaged   -> "Damaged" to MaterialTheme.colorScheme.error
+                    slot.available -> "Available" to MaterialTheme.colorScheme.primary
                     else             -> "Occupied"  to MaterialTheme.colorScheme.tertiary
                 }
 

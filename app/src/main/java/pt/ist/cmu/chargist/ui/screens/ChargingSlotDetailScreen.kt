@@ -180,9 +180,9 @@ fun ChargingSlotDetailScreen(
                     shape = RoundedCornerShape(12.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (slot.isDamaged) {
+                        containerColor = if (slot.damaged) {
                             MaterialTheme.colorScheme.errorContainer
-                        } else if (slot.isAvailable) {
+                        } else if (slot.available) {
                             MaterialTheme.colorScheme.primaryContainer
                         } else {
                             MaterialTheme.colorScheme.tertiaryContainer
@@ -196,17 +196,17 @@ fun ChargingSlotDetailScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         val statusText = when {
-                            slot.isDamaged -> "Damaged"
-                            slot.isAvailable -> "Available"
+                            slot.damaged -> "Damaged"
+                            slot.available -> "Available"
                             else -> "Occupied"
                         }
                         val statusIcon = when {
-                            slot.isDamaged -> Icons.Default.Warning
+                            slot.damaged -> Icons.Default.Warning
                             else -> null
                         }
                         val statusColor = when {
-                            slot.isDamaged -> MaterialTheme.colorScheme.error
-                            slot.isAvailable -> MaterialTheme.colorScheme.primary
+                            slot.damaged -> MaterialTheme.colorScheme.error
+                            slot.available -> MaterialTheme.colorScheme.primary
                             else -> MaterialTheme.colorScheme.tertiary
                         }
 
@@ -289,7 +289,7 @@ fun ChargingSlotDetailScreen(
                     // Report damage button
                     Button(
                         onClick = {
-                            viewModel.reportSlotDamage(slotId, !slot.isDamaged, slot.speed)
+                            viewModel.reportSlotDamage(slotId, !slot.damaged, slot.speed)
                         }
                     ) {
                         Icon(
@@ -297,7 +297,7 @@ fun ChargingSlotDetailScreen(
                             contentDescription = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (slot.isDamaged) "Mark as Fixed" else "Report Damage")
+                        Text(if (slot.damaged) "Mark as Fixed" else "Report Damage")
                     }
                 }
 
