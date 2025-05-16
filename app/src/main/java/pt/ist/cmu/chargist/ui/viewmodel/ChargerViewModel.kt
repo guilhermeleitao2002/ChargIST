@@ -280,7 +280,7 @@ class ChargerViewModel(
         viewModelScope.launch {
             val res = chargerRepository.reportDamage(slotId, damaged, speed)
             if (res is NetworkResult.Success) loadChargerDetails(res.data.chargerId)
-    }
+        }
 
     /* ---------- nearby places ---------- */
 
@@ -362,6 +362,13 @@ class ChargerViewModel(
                 _detail.value = ChargerDetailState(error = result.message)
             }
             else -> {}
+        }
+    }
+
+    fun deleteCharger(chargerId: String) {
+        viewModelScope.launch {
+            chargerRepository.deleteCharger(chargerId)
+            // Optional: Add error handling or UI feedback here
         }
     }
 

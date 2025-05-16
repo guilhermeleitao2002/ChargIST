@@ -42,11 +42,12 @@ interface ChargerRepository {
     ): NetworkResult<Charger>
 
     suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean): NetworkResult<Charger>
-
+    suspend fun deleteCharger(chargerId: String): NetworkResult<Unit>
     /* ─────── slots ─────── */
     suspend fun getChargingSlotsForCharger(chargerId: String): List<ChargingSlot>
 
     suspend fun findChargerBySlotId(slotId: String): NetworkResult<Pair<Charger, ChargingSlot>>
+
 
     suspend fun createChargingSlot(
         chargerId: String,
@@ -83,3 +84,4 @@ interface ChargerRepository {
         userLocation: LatLng? = null
     ): NetworkResult<List<Charger>>
 }
+
