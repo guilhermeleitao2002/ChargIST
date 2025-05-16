@@ -143,8 +143,8 @@ class FirestoreChargerRepository(
 
     /* ---------- slots ---------- */
 
-    override fun getChargingSlotsForCharger(chargerId: String): Flow<List<ChargingSlot>> =
-        slotsCol(chargerId).snapshots().map { it.toObjects(ChargingSlot::class.java) }
+    override suspend fun getChargingSlotsForCharger(chargerId: String): List<ChargingSlot> =
+        slotsCol(chargerId).get().await().toObjects(ChargingSlot::class.java)
 
     override suspend fun createChargingSlot(
         chargerId: String,
@@ -218,9 +218,10 @@ class FirestoreChargerRepository(
         when (val base = getChargerById(chargerId)) {
             is NetworkResult.Error   -> emit(base)
             is NetworkResult.Success -> {
+//                val slots = getChargingSlotsForCharger(chargerId)
+//                    .map { it.sortedBy { s -> s.speed } }
+//                    .first()
                 val slots = getChargingSlotsForCharger(chargerId)
-                    .map { it.sortedBy { s -> s.speed } }
-                    .first()
 
                 // Fetch payment systems from subcollection
                 val paymentSystems = chargerDoc(chargerId).collection("paymentSystems")
@@ -374,4 +375,26 @@ class FirestoreChargerRepository(
 
         NetworkResult.Success(Pair(charger, slot))
     }.getOrElse { NetworkResult.Error(it.message ?: "Failed to find Charger") }
+
+
+    // ---------- delete charger ----------
+
+    override suspend fun deleteCharger(chargerId: String): NetworkResult<Unit> = runCatching {
+        // Delete subcollections first
+        deleteSubcollection(slotsCol(chargerId)) // chargingSlots
+        deleteSubcollection(chargerDoc(chargerId).collection("paymentSystems")) // paymentSystems
+
+        // Delete the charger document
+        chargerDoc(chargerId).delete().await()
+        NetworkResult.Success(Unit)
+    }.getOrElse { NetworkResult.Error(it.message ?: "Delete failed") }
+
+    private suspend fun deleteSubcollection(collection: CollectionReference) {
+        val docs = collection.get().await().documents
+        for (doc in docs) {
+            doc.reference.delete().await()
+        }
+    }
+
 }
+

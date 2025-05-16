@@ -55,6 +55,7 @@ fun ChargerDetailScreen(
     val chargerWithDetails = detailState.chargerWithDetails
     val userId = FirebaseAuth.getInstance().currentUser?.uid
     var nearbyServicesLoaded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(chargerWithDetails?.charger?.id) {
         chargerWithDetails?.charger?.let { charger ->
@@ -82,6 +83,13 @@ fun ChargerDetailScreen(
                             Icon(
                                 if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                 contentDescription = if (isFavorite) "Remove from favourites" else "Add to favourites"
+                            )
+                        }
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = "Delete charger",
+                                tint = MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -127,18 +135,14 @@ fun ChargerDetailScreen(
                         .padding(innerPad)
                 ) {
                     item {
-                        // Image and Map - Always shown at the top
                         HeaderSection(chargerWithDetails)
-
                         Spacer(modifier = Modifier.height(16.dp))
-
                         Divider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                         )
                     }
 
-                    // Main "Charging Slots" section header
                     item {
                         Row(
                             modifier = Modifier
@@ -152,7 +156,6 @@ fun ChargerDetailScreen(
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold
                             )
-
                             IconButton(onClick = { onAddChargingSlot(chargerId) }) {
                                 Icon(
                                     imageVector = Icons.Filled.Add,
@@ -161,11 +164,9 @@ fun ChargerDetailScreen(
                                 )
                             }
                         }
-
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    // Collapsible section for Fast Charging slots
                     val fastSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.FAST }
                     if (fastSlots.isNotEmpty()) {
                         item {
@@ -173,14 +174,11 @@ fun ChargerDetailScreen(
                                 title = "Fast Charging",
                                 items = fastSlots
                             ) { slot ->
-                                ChargingSlotItem(slot = slot) {
-                                    onViewSlotDetails(slot.id)
-                                }
+                                ChargingSlotItem(slot = slot) { onViewSlotDetails(slot.id) }
                             }
                         }
                     }
 
-                    // Collapsible section for Medium Charging slots
                     val mediumSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.MEDIUM }
                     if (mediumSlots.isNotEmpty()) {
                         item {
@@ -188,14 +186,11 @@ fun ChargerDetailScreen(
                                 title = "Medium Charging",
                                 items = mediumSlots
                             ) { slot ->
-                                ChargingSlotItem(slot = slot) {
-                                    onViewSlotDetails(slot.id)
-                                }
+                                ChargingSlotItem(slot = slot) { onViewSlotDetails(slot.id) }
                             }
                         }
                     }
 
-                    // Collapsible section for Slow Charging slots
                     val slowSlots = chargerWithDetails.chargingSlots.filter { it.speed == ChargingSpeed.SLOW }
                     if (slowSlots.isNotEmpty()) {
                         item {
@@ -203,14 +198,11 @@ fun ChargerDetailScreen(
                                 title = "Slow Charging",
                                 items = slowSlots
                             ) { slot ->
-                                ChargingSlotItem(slot = slot) {
-                                    onViewSlotDetails(slot.id)
-                                }
+                                ChargingSlotItem(slot = slot) { onViewSlotDetails(slot.id) }
                             }
                         }
                     }
 
-                    // Additional sections for payment and services
                     item {
                         Spacer(modifier = Modifier.height(16.dp))
                         Divider(
@@ -220,7 +212,6 @@ fun ChargerDetailScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                     }
 
-                    // Collapsible section for Payment Methods
                     item {
                         CollapsibleSection(
                             title = "Payment Methods",
@@ -235,7 +226,6 @@ fun ChargerDetailScreen(
                         }
                     }
 
-                    // Collapsible section for Nearby Services
                     item {
                         CollapsibleSection(
                             title = "Nearby Services",
@@ -251,12 +241,38 @@ fun ChargerDetailScreen(
                 }
             }
         }
+
+        // Add the confirmation dialog here
+        if (showDeleteDialog) {
+            ConfirmDeleteDialog(
+                onConfirm = {
+                    chargerViewModel.deleteCharger(chargerId)
+                    showDeleteDialog = false
+                    onBackClick() // Navigate back after deletion
+                },
+                onDismiss = { showDeleteDialog = false }
+            )
+        }
     }
 }
 
 @Composable
+fun ConfirmDeleteDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete this charger?") },
+        text = { Text("This action cannot be undone.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("Delete") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
 private fun HeaderSection(chargerWithDetails: pt.ist.cmu.chargist.data.model.ChargerWithDetails) {
-    // Image Section
     val photoData = chargerWithDetails.charger.imageData
     if (photoData != null) {
         AsyncImage(
@@ -282,7 +298,6 @@ private fun HeaderSection(chargerWithDetails: pt.ist.cmu.chargist.data.model.Cha
 
     Spacer(Modifier.height(16.dp))
 
-    // Map Section
     val loc = LatLng(
         chargerWithDetails.charger.latitude,
         chargerWithDetails.charger.longitude
@@ -318,7 +333,6 @@ private fun NearbyServiceItem(service: NearbyService) {
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon based on service type
         val icon = when {
             service.type.contains("RESTAURANT") || service.type.contains("CAFE") ->
                 Icons.Default.Restaurant
@@ -360,7 +374,6 @@ private fun <T> CollapsibleSection(
     val rotationState by animateFloatAsState(if (isExpanded) 180f else 0f)
 
     Column(Modifier.padding(vertical = 8.dp)) {
-        // Section header with title and buttons
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -368,15 +381,12 @@ private fun <T> CollapsibleSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Title on the left
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge
             )
 
-            // Buttons on the right
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Add button if onAddAction is provided
                 onAddAction?.let {
                     IconButton(onClick = onAddAction) {
                         Icon(
@@ -386,7 +396,6 @@ private fun <T> CollapsibleSection(
                     }
                 }
 
-                // Chevron for expand/collapse
                 IconButton(onClick = { isExpanded = !isExpanded }) {
                     Icon(
                         imageVector = Icons.Default.ExpandMore,
@@ -397,7 +406,6 @@ private fun <T> CollapsibleSection(
             }
         }
 
-        // Expandable content section
         AnimatedVisibility(visible = isExpanded) {
             Column(
                 modifier = Modifier.fillMaxWidth()
