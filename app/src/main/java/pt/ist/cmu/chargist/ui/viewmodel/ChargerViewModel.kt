@@ -206,7 +206,8 @@ class ChargerViewModel(
             imageData = base64,
             userId = uid,
             chargingSlots = slots,
-            paymentSystems = s.paymentSystems // Pass payment systems to repository
+            paymentSystems = s.paymentSystems,  // Pass payment systems to repository
+            chargerId = chargerId
         )) {
             is NetworkResult.Success -> _create.value = ChargerCreationState(isSuccess = true)
             is NetworkResult.Error -> _create.value = s.copy(isSubmitting = false, error = res.message)
@@ -276,9 +277,9 @@ class ChargerViewModel(
                 loadChargerDetails(chargerId)
         }
 
-    fun reportSlotDamage(slotId: String, damaged: Boolean) =
+    fun reportSlotDamage(slotId: String, damaged: Boolean, speed: ChargingSpeed) =
         viewModelScope.launch {
-            val res = chargerRepository.reportDamage(slotId, damaged)
+            val res = chargerRepository.reportDamage(slotId, damaged, speed)
             if (res is NetworkResult.Success) loadChargerDetails(res.data.chargerId)
     }
 
@@ -346,4 +347,23 @@ class ChargerViewModel(
         // Update the state with the new list
         _create.update { it.copy(paymentSystems = currentSystems) }
     }
+
+    /* ---------- slots ---------- */
+    fun getChargingSlotsForCharger(chargerId: String): Flow<List<ChargingSlot>> =
+        chargerRepository.getChargingSlotsForCharger(chargerId)
+
+    fun loadChargerBySlotId(slotId: String) = viewModelScope.launch {
+        _detail.value = ChargerDetailState(isLoading = true)
+        when (val result = chargerRepository.findChargerBySlotId(slotId)) {
+            is NetworkResult.Success -> {
+                val (charger, slot) = result.data
+                loadChargerDetails(charger.id)
+            }
+            is NetworkResult.Error -> {
+                _detail.value = ChargerDetailState(error = result.message)
+            }
+            else -> {}
+        }
+    }
+
 }

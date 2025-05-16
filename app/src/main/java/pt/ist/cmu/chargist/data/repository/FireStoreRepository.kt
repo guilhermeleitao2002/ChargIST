@@ -73,13 +73,13 @@ class FirestoreChargerRepository(
         location: LatLng,
         imageData: String?,
         userId: String,
+        chargerId: String,
         chargingSlots: List<ChargingSlot>,
         paymentSystems: List<PaymentSystem>
     ): NetworkResult<Charger> {
-        val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         val charger = Charger(
-            id = id,
+            id = chargerId,
             name = name,
             latitude = location.latitude,
             longitude = location.longitude,
@@ -88,20 +88,19 @@ class FirestoreChargerRepository(
             createdAt = now,
             updatedAt = now,
             favoriteUsers = emptyList(),
-            chargingSlots = chargingSlots
         )
 
         return runCatching {
             // Create the charger document
-            chargerDoc(id).set(charger).await()
+            chargerDoc(chargerId).set(charger).await()
 
             // Create individual slot documents in the subcollection
             for (slot in chargingSlots) {
-                slotsCol(id).document(slot.id).set(slot).await()
+                slotsCol(chargerId).document(slot.id).set(slot).await()
             }
 
             // Create payment systems subcollection
-            val paymentSystemsCol = chargerDoc(id).collection("paymentSystems")
+            val paymentSystemsCol = chargerDoc(chargerId).collection("paymentSystems")
             for (paymentSystem in paymentSystems) {
                 paymentSystemsCol.document(paymentSystem.id).set(paymentSystem).await()
             }
@@ -192,9 +191,10 @@ class FirestoreChargerRepository(
 
     override suspend fun reportDamage(
         slotId: String,
-        isDamaged: Boolean
+        isDamaged: Boolean,
+        speed: ChargingSpeed
     ): NetworkResult<ChargingSlot> =
-        updateChargingSlot(slotId, speed = ChargingSpeed.SLOW,   // keep previous speed
+        updateChargingSlot(slotId, speed = speed,   // keep previous speed
             isAvailable = !isDamaged, isDamaged = isDamaged)
 
     /* ---------- nearby services (stub) ---------- */
@@ -347,4 +347,31 @@ class FirestoreChargerRepository(
         val speedMs = speedKmh / 3.6 // Conversão para m/s
         return distanceMeters / speedMs // Tempo em segundos
     }
+
+    /* ---------- find charger by slot id ---------- */
+
+    override suspend fun findChargerBySlotId(slotId: String): NetworkResult<Pair<Charger, ChargingSlot>> = runCatching {
+        // Extrair o chargerId como a parte antes do primeiro "_"
+        val indexOfSeparator = slotId.indexOf("_")
+        if (indexOfSeparator == -1) {
+            return NetworkResult.Error("Invalid slotId format: expected format <chargerId>_<speed>-<index>")
+        }
+        val extractedChargerId = slotId.substring(0, indexOfSeparator)
+
+        // Buscar o ChargingSlot na subcoleção
+        val slotDoc = slotsCol(extractedChargerId).document(slotId).get().await()
+        val slot = slotDoc.toObject(ChargingSlot::class.java)
+            ?: return NetworkResult.Error("Slot not found")
+
+        // Validar se o chargerId do slot corresponde ao extraído
+        if (slot.chargerId != extractedChargerId) {
+            return NetworkResult.Error("Charger ID mismatch: extracted $extractedChargerId does not match slot's chargerId ${slot.chargerId}")
+        }
+
+        // Buscar o Charger
+        val charger = chargerDoc(extractedChargerId).get().await().toObject(Charger::class.java)
+            ?: return NetworkResult.Error("Charger not found")
+
+        NetworkResult.Success(Pair(charger, slot))
+    }.getOrElse { NetworkResult.Error(it.message ?: "Failed to find Charger") }
 }

@@ -45,7 +45,6 @@ data class Charger(
 
     // Add a field for direct slot storage
 //    @Ignore // This field won't be stored in Room, only in Firestore
-    val chargingSlots: List<ChargingSlot> = emptyList()
 ) {
     fun getLatLng(): LatLng = LatLng(latitude, longitude)
 }

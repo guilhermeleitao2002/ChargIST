@@ -36,6 +36,7 @@ interface ChargerRepository {
         location: LatLng,
         imageData: String?,
         userId: String,
+        chargerId: String,
         chargingSlots: List<ChargingSlot> = emptyList(),
         paymentSystems: List<PaymentSystem> = emptyList()
     ): NetworkResult<Charger>
@@ -44,6 +45,8 @@ interface ChargerRepository {
 
     /* ─────── slots ─────── */
     fun getChargingSlotsForCharger(chargerId: String): Flow<List<ChargingSlot>>
+
+    suspend fun findChargerBySlotId(slotId: String): NetworkResult<Pair<Charger, ChargingSlot>>
 
     suspend fun createChargingSlot(
         chargerId: String,
@@ -59,7 +62,7 @@ interface ChargerRepository {
         isDamaged: Boolean
     ): NetworkResult<ChargingSlot>
 
-    suspend fun reportDamage(slotId: String, isDamaged: Boolean): NetworkResult<ChargingSlot>
+    suspend fun reportDamage(slotId: String, isDamaged: Boolean, speed: ChargingSpeed): NetworkResult<ChargingSlot>
 
     /* ─────── nearby services ─────── */
     fun getNearbyServicesForCharger(chargerId: String): Flow<List<NearbyService>>

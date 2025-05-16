@@ -57,37 +57,13 @@ fun ChargingSlotDetailScreen(
 ) {
     var debugMessage by remember { mutableStateOf<String?>(null) }
 
-    // We need a different approach for getting the charger ID
-    // The slot ID doesn't contain the charger ID in the format we expected
-
-    val detailState by viewModel.chargerDetailState.collectAsState()
-
-    // First, let's determine if we need to load charger data
-    LaunchedEffect(Unit) {
-        // Instead of trying to extract chargerId from slotId,
-        // we need to search through all loaded chargers to find which one contains this slot
-        // OR use a direct API call to get slot details
-
-        // For now, let's try loading each charger that might contain this slot
-        viewModel.loadAllChargers()
+    // Carregar o Charger correspondente ao slotId usando o ViewModel
+    LaunchedEffect(slotId) {
+        viewModel.loadChargerBySlotId(slotId)
         debugMessage = "Attempting to find charger containing slot: $slotId"
     }
 
-    // Search for the slot in all loaded chargers
-    val chargerWithSlot = remember(detailState.allChargers, slotId) {
-        detailState.allChargers.find { charger ->
-            charger.chargingSlots.any { it.id == slotId }
-        }
-    }
-
-    // If we found the charger, load its full details
-    LaunchedEffect(chargerWithSlot) {
-        if (chargerWithSlot != null) {
-            viewModel.loadChargerDetails(chargerWithSlot.id)
-            debugMessage = "Found charger containing slot: ${chargerWithSlot.id}"
-        }
-    }
-
+    val detailState by viewModel.chargerDetailState.collectAsState()
     val chargerWithDetails = detailState.chargerWithDetails
     val slot = chargerWithDetails?.chargingSlots?.find { it.id == slotId }
 
@@ -313,7 +289,7 @@ fun ChargingSlotDetailScreen(
                     // Report damage button
                     Button(
                         onClick = {
-                            viewModel.reportSlotDamage(slotId, !slot.isDamaged)
+                            viewModel.reportSlotDamage(slotId, !slot.isDamaged, slot.speed)
                         }
                     ) {
                         Icon(
