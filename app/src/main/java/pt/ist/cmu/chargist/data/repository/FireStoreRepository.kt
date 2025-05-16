@@ -170,23 +170,39 @@ class FirestoreChargerRepository(
     override suspend fun updateChargingSlot(
         slotId: String,
         speed: ChargingSpeed,
-        isAvailable: Boolean,
-        isDamaged: Boolean
+        available: Boolean,
+        damaged: Boolean
     ): NetworkResult<ChargingSlot> = runCatching {
-        // we need chargerId → look it up once
-        val slotSnap = db.collectionGroup("chargingSlots")
-            .whereEqualTo("id", slotId).limit(1).get().await()
-        val doc = slotSnap.documents.firstOrNull()
+
+        val indexOfSeparator = slotId.indexOf("_")
+        if (indexOfSeparator == -1) {
+            return NetworkResult.Error("Invalid slotId format: expected format <chargerId>_<speed>_<index>")
+        }
+        val extractedChargerId = slotId.substring(0, indexOfSeparator)
+
+        val slotRef = slotsCol(extractedChargerId).document(slotId)
+
+        val slotSnap = slotRef.get().await()
+        val slot = slotSnap.toObject(ChargingSlot::class.java)
             ?: return NetworkResult.Error("Slot not found")
 
+        if (slot.chargerId != extractedChargerId) {
+            return NetworkResult.Error("Charger ID mismatch: extracted $extractedChargerId does not match slot's chargerId ${slot.chargerId}")
+        }
+
         val updates = mapOf(
-            "speed"       to speed,
-            "isAvailable" to isAvailable,
-            "isDamaged"   to isDamaged,
-            "updatedAt"   to System.currentTimeMillis()
+            "speed" to speed,
+            "available" to available,
+            "damaged" to damaged,
+            "updatedAt" to System.currentTimeMillis()
         )
-        doc.reference.update(updates).await()
-        NetworkResult.Success(doc.reference.get().await().toObject(ChargingSlot::class.java)!!)
+        slotRef.update(updates).await()
+
+        // Buscar o documento atualizado
+        val updatedSlot = slotRef.get().await().toObject(ChargingSlot::class.java)
+            ?: return NetworkResult.Error("Failed to fetch updated slot")
+
+        NetworkResult.Success(updatedSlot)
     }.getOrElse { NetworkResult.Error(it.message ?: "Update failed") }
 
     override suspend fun reportDamage(
@@ -195,7 +211,7 @@ class FirestoreChargerRepository(
         speed: ChargingSpeed
     ): NetworkResult<ChargingSlot> =
         updateChargingSlot(slotId, speed = speed,   // keep previous speed
-            isAvailable = !isDamaged, isDamaged = isDamaged)
+            available = !isDamaged, damaged = isDamaged)
 
     /* ---------- nearby services (stub) ---------- */
 
