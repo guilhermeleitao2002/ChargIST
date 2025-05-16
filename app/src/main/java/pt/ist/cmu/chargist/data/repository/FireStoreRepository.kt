@@ -374,4 +374,23 @@ class FirestoreChargerRepository(
 
         NetworkResult.Success(Pair(charger, slot))
     }.getOrElse { NetworkResult.Error(it.message ?: "Failed to find Charger") }
+
+    // ---------- delete charger ----------
+
+    override suspend fun deleteCharger(chargerId: String): NetworkResult<Unit> = runCatching {
+        // Delete subcollections first
+        deleteSubcollection(slotsCol(chargerId)) // chargingSlots
+        deleteSubcollection(chargerDoc(chargerId).collection("paymentSystems")) // paymentSystems
+
+        // Delete the charger document
+        chargerDoc(chargerId).delete().await()
+        NetworkResult.Success(Unit)
+    }.getOrElse { NetworkResult.Error(it.message ?: "Delete failed") }
+
+    private suspend fun deleteSubcollection(collection: CollectionReference) {
+        val docs = collection.get().await().documents
+        for (doc in docs) {
+            doc.reference.delete().await()
+        }
+    }
 }
