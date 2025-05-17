@@ -32,6 +32,12 @@ data class ChargerCreationState(
     val fastPositions: Int = 0,
     val mediumPositions: Int = 0,
     val slowPositions: Int = 0,
+    val fastConnectorType: ConnectorType = ConnectorType.CCS2,
+    val mediumConnectorType: ConnectorType = ConnectorType.CCS2,
+    val slowConnectorType: ConnectorType = ConnectorType.TYPE2,
+    val fastPrice: Double = 0.50,
+    val mediumPrice: Double = 0.35,
+    val slowPrice: Double = 0.25,
     val paymentSystems: List<PaymentSystem> = emptyList(),
     val isSubmitting: Boolean = false,
     val error: String? = null,
@@ -165,8 +171,8 @@ class ChargerViewModel(
                 id = slotId,
                 chargerId = chargerId,
                 speed = ChargingSpeed.FAST,
-                connectorType = ConnectorType.CCS2,
-                price = 0.50,
+                connectorType = s.fastConnectorType,  // Use custom connector type
+                price = s.fastPrice,                  // Use custom price
                 available = true,
                 damaged = false,
                 updatedAt = System.currentTimeMillis()
@@ -180,8 +186,8 @@ class ChargerViewModel(
                 id = slotId,
                 chargerId = chargerId,
                 speed = ChargingSpeed.MEDIUM,
-                connectorType = ConnectorType.CCS2,
-                price = 0.35,
+                connectorType = s.mediumConnectorType, // Use custom connector type
+                price = s.mediumPrice,                 // Use custom price
                 available = true,
                 damaged = false,
                 updatedAt = System.currentTimeMillis()
@@ -195,8 +201,8 @@ class ChargerViewModel(
                 id = slotId,
                 chargerId = chargerId,
                 speed = ChargingSpeed.SLOW,
-                connectorType = ConnectorType.TYPE2,
-                price = 0.25,
+                connectorType = s.slowConnectorType,  // Use custom connector type
+                price = s.slowPrice,                  // Use custom price
                 available = true,
                 damaged = false,
                 updatedAt = System.currentTimeMillis()
@@ -206,7 +212,7 @@ class ChargerViewModel(
         /* 6 · write to Firestore --------------------------------------------- */
         when (val res = chargerRepository.createCharger(
             name = s.name,
-            location = s.location!!,
+            location = s.location,
             imageData = base64,
             userId = uid,
             chargingSlots = slots,
@@ -227,6 +233,14 @@ class ChargerViewModel(
     fun updateSearchSortBy(sort: String) { _search.update { it.copy(sortBy = sort) } }
     fun updateSearchPaymentSystems(systems: List<PaymentSystem>?) { _search.update { it.copy(paymentSystems = systems) } }
     fun updateUserLocation(location: LatLng?) { _search.update { it.copy(userLocation = location) } }
+
+    /* ---------- charger slots updaters ---------- */
+    fun updateFastConnectorType(type: ConnectorType) { _create.update { it.copy(fastConnectorType = type) } }
+    fun updateMediumConnectorType(type: ConnectorType) { _create.update { it.copy(mediumConnectorType = type) } }
+    fun updateSlowConnectorType(type: ConnectorType) { _create.update { it.copy(slowConnectorType = type) } }
+    fun updateFastPrice(price: Double) { _create.update { it.copy(fastPrice = price) } }
+    fun updateMediumPrice(price: Double) { _create.update { it.copy(mediumPrice = price) } }
+    fun updateSlowPrice(price: Double) { _create.update { it.copy(slowPrice = price) } }
 
     fun searchChargers() = viewModelScope.launch {
         val st = _search.value

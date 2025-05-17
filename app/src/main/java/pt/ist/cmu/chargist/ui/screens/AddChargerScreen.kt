@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -23,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,11 +36,12 @@ import com.google.maps.android.compose.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
-import pt.ist.cmu.chargist.R
 import pt.ist.cmu.chargist.data.model.PaymentSystem
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
-import com.google.android.libraries.places.api.model.AutocompletePrediction
+import pt.ist.cmu.chargist.data.model.ChargingSpeed
+import pt.ist.cmu.chargist.data.model.ConnectorType
+import androidx.compose.ui.text.input.KeyboardType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -232,11 +234,43 @@ fun AddChargerScreen(
             Text("Charging Positions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
 
-            ChargingPositionSelector("Fast Charging", fastPositions) { fastPositions = it; chargerViewModel.updateFastPositions(it) }
+            // Charging Positions Section
+            ChargingPositionSelector(
+                "Fast Charging",
+                fastPositions,
+                { fastPositions = it; chargerViewModel.updateFastPositions(it) },
+                ChargingSpeed.FAST,
+                chargerCreationState.fastConnectorType,
+                chargerCreationState.fastPrice,
+                { chargerViewModel.updateFastConnectorType(it) },
+                { chargerViewModel.updateFastPrice(it) }
+            )
+
             Spacer(Modifier.height(8.dp))
-            ChargingPositionSelector("Medium Charging", mediumPositions) { mediumPositions = it; chargerViewModel.updateMediumPositions(it) }
+
+            ChargingPositionSelector(
+                "Medium Charging",
+                mediumPositions,
+                { mediumPositions = it; chargerViewModel.updateMediumPositions(it) },
+                ChargingSpeed.MEDIUM,
+                chargerCreationState.mediumConnectorType,
+                chargerCreationState.mediumPrice,
+                { chargerViewModel.updateMediumConnectorType(it) },
+                { chargerViewModel.updateMediumPrice(it) }
+            )
+
             Spacer(Modifier.height(8.dp))
-            ChargingPositionSelector("Slow Charging", slowPositions) { slowPositions = it; chargerViewModel.updateSlowPositions(it) }
+
+            ChargingPositionSelector(
+                "Slow Charging",
+                slowPositions,
+                { slowPositions = it; chargerViewModel.updateSlowPositions(it) },
+                ChargingSpeed.SLOW,
+                chargerCreationState.slowConnectorType,
+                chargerCreationState.slowPrice,
+                { chargerViewModel.updateSlowConnectorType(it) },
+                { chargerViewModel.updateSlowPrice(it) }
+            )
 
             Spacer(Modifier.height(24.dp))
 
@@ -395,19 +429,115 @@ fun AddChargerScreen(
 fun ChargingPositionSelector(
     title: String,
     count: Int,
-    onCountChange: (Int) -> Unit
+    onCountChange: (Int) -> Unit,
+    speed: ChargingSpeed,
+    connectorType: ConnectorType,
+    price: Double,
+    onConnectorTypeChange: (ConnectorType) -> Unit,
+    onPriceChange: (Double) -> Unit
 ) {
+    var isCustomizeExpanded by remember { mutableStateOf(false) }
+    var priceInput by remember { mutableStateOf(price.toString()) }
+
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Spacer(Modifier.width(8.dp))
             Text(count.toString(), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+
+            // Customize button
+            if (count > 0) {
+                IconButton(onClick = { isCustomizeExpanded = !isCustomizeExpanded }) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Customize $title"
+                    )
+                }
+            }
         }
+
         Slider(
             value = count.toFloat(),
             onValueChange = { onCountChange(it.toInt()) },
             valueRange = 0f..10f,
             steps = 9
         )
+
+        // Customization panel
+        AnimatedVisibility(visible = isCustomizeExpanded && count > 0) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        "Customize $title",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Connector Type selector
+                    Text("Connector Type", style = MaterialTheme.typography.bodyMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { onConnectorTypeChange(ConnectorType.CCS2) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (connectorType == ConnectorType.CCS2)
+                                    MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                contentColor = if (connectorType == ConnectorType.CCS2)
+                                    MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("CCS2")
+                        }
+
+                        Button(
+                            onClick = { onConnectorTypeChange(ConnectorType.TYPE2) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (connectorType == ConnectorType.TYPE2)
+                                    MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                contentColor = if (connectorType == ConnectorType.TYPE2)
+                                    MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("TYPE2")
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Price input
+                    Text("Cost per kWh ($)", style = MaterialTheme.typography.bodyMedium)
+                    OutlinedTextField(
+                        value = priceInput,
+                        onValueChange = {
+                            if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d*$"))) {
+                                priceInput = it
+                                it.toDoubleOrNull()?.let { value ->
+                                    onPriceChange(value)
+                                }
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
     }
 }
