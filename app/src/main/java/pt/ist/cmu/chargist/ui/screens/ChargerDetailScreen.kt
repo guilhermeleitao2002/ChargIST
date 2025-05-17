@@ -1,12 +1,12 @@
 package pt.ist.cmu.chargist.ui.screens
 
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,7 +20,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,6 +36,7 @@ import pt.ist.cmu.chargist.data.model.NearbyService
 import pt.ist.cmu.chargist.data.repository.ImageCodec
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
+import pt.ist.cmu.chargist.util.NetworkResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +51,7 @@ fun ChargerDetailScreen(
 ) {
     LaunchedEffect(chargerId) { chargerViewModel.loadChargerDetails(chargerId) }
 
+    val context = LocalContext.current
     val detailState by chargerViewModel.chargerDetailState.collectAsState()
     val chargerWithDetails = detailState.chargerWithDetails
     val userId = FirebaseAuth.getInstance().currentUser?.uid
@@ -63,6 +64,18 @@ fun ChargerDetailScreen(
                 val location = LatLng(charger.latitude, charger.longitude)
                 chargerViewModel.loadNearbyPlaces(location)
                 nearbyServicesLoaded = true
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        chargerViewModel.deletionEvents.collect { result ->
+            when (result) {
+                is NetworkResult.Success ->
+                    Toast.makeText(context, "Charger deleted successfully", Toast.LENGTH_SHORT).show()
+                is NetworkResult.Error ->
+                    Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_LONG).show()
+                else -> {}
             }
         }
     }
@@ -244,13 +257,28 @@ fun ChargerDetailScreen(
 
         // Add the confirmation dialog here
         if (showDeleteDialog) {
-            ConfirmDeleteDialog(
-                onConfirm = {
-                    chargerViewModel.deleteCharger(chargerId)
-                    showDeleteDialog = false
-                    onBackClick() // Navigate back after deletion
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Delete this charger?") },
+                text = { Text("This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val success = chargerViewModel.deleteCharger(chargerId)
+                            showDeleteDialog = false
+                            if (success) {
+                                // Show immediate feedback
+                                Toast.makeText(context, "Charger deleted!", Toast.LENGTH_SHORT).show()
+                                onBackClick() // Navigate back immediately
+                            }
+                        }
+                    ) { Text("Delete") }
                 },
-                onDismiss = { showDeleteDialog = false }
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
             )
         }
     }

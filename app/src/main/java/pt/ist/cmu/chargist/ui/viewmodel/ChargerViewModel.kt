@@ -14,6 +14,7 @@ import pt.ist.cmu.chargist.util.NetworkResult
 import java.util.UUID
 import pt.ist.cmu.chargist.data.repository.AuthRepository
 import pt.ist.cmu.chargist.data.repository.NearbyPlacesRepository
+import kotlinx.coroutines.Dispatchers
 
 /* ───────────── state holders ───────────── */
 
@@ -72,6 +73,9 @@ class ChargerViewModel(
     val allChargers: StateFlow<List<Charger>> = _allChargers.asStateFlow()
 
     private val nearbyPlacesRepository = NearbyPlacesRepository()
+
+    private val _deletionEvents = MutableSharedFlow<NetworkResult<String>>()
+    val deletionEvents = _deletionEvents.asSharedFlow()
 
     /* ---------- details ---------- */
 
@@ -365,11 +369,32 @@ class ChargerViewModel(
         }
     }
 
-    fun deleteCharger(chargerId: String) {
-        viewModelScope.launch {
-            chargerRepository.deleteCharger(chargerId)
-            // Optional: Add error handling or UI feedback here
+    fun deleteCharger(chargerId: String): Boolean {
+        // Launch in Dispatchers.IO to ensure it doesn't get cancelled with the UI
+        viewModelScope.launch(Dispatchers.IO) {
+            Log.d("ChargerViewModel", "Starting charger deletion: $chargerId")
+            try {
+                val result = chargerRepository.deleteCharger(chargerId)
+                when (result) {
+                    is NetworkResult.Success -> {
+                        Log.d("ChargerViewModel", "Successfully deleted charger: $chargerId")
+                        _deletionEvents.emit(NetworkResult.Success(chargerId))
+                        loadAllChargers()
+                    }
+                    is NetworkResult.Error -> {
+                        Log.e("ChargerViewModel", "Failed to delete charger: ${result.message}")
+                        _deletionEvents.emit(NetworkResult.Error(result.message))
+                    }
+                    else -> {}
+                }
+            } catch (e: Exception) {
+                Log.e("ChargerViewModel", "Exception during deletion: ${e.message}", e)
+                viewModelScope.launch {
+                    _deletionEvents.emit(NetworkResult.Error(e.message ?: "Unknown error"))
+                }
+            }
         }
+        return true // Return immediately to indicate deletion started
     }
 
 }
