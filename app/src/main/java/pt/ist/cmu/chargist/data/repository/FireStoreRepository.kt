@@ -1,5 +1,6 @@
 package pt.ist.cmu.chargist.data.repository
 
+import android.util.Log
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.firebase.firestore.CollectionReference
@@ -7,8 +8,8 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.snapshots
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
@@ -19,6 +20,7 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
+import com.google.firebase.firestore.WriteBatch
 
 class FirestoreChargerRepository(
     private val db: FirebaseFirestore
@@ -391,22 +393,106 @@ class FirestoreChargerRepository(
         NetworkResult.Success(Pair(charger, slot))
     }.getOrElse { NetworkResult.Error(it.message ?: "Failed to find Charger") }
 
-    // ---------- delete charger ----------
-
+    /* ---------- delete charger ---------- */
     override suspend fun deleteCharger(chargerId: String): NetworkResult<Unit> = runCatching {
-        // Delete subcollections first
-        deleteSubcollection(slotsCol(chargerId)) // chargingSlots
-        deleteSubcollection(chargerDoc(chargerId).collection("paymentSystems")) // paymentSystems
+        // Delete all charging slots with retries
+        forceDeleteSubcollection(slotsCol(chargerId))
 
-        // Delete the charger document
-        chargerDoc(chargerId).delete().await()
+        // Delete all payment systems with retries
+        forceDeleteSubcollection(chargerDoc(chargerId).collection("paymentSystems"))
+
+        // Delete the main charger document with retries
+        var chargerDeleted = false
+        for (attempt in 1..10) {
+            try {
+                chargerDoc(chargerId).delete().await()
+                break
+            } catch (e: Exception) {
+                delay(300) // Wait a bit before retrying
+            }
+        }
+
         NetworkResult.Success(Unit)
     }.getOrElse { NetworkResult.Error(it.message ?: "Delete failed") }
 
-    private suspend fun deleteSubcollection(collection: CollectionReference) {
-        val docs = collection.get().await().documents
-        for (doc in docs) {
-            doc.reference.delete().await()
+    private suspend fun forceDeleteSubcollection(collection: CollectionReference): Boolean {
+        var allDeleted = true
+        val maxRetries = 10
+
+        try {
+            // Get all documents in the collection
+            val docs = collection.get().await().documents
+            Log.d("FirestoreChargerRepo", "Attempting to delete ${docs.size} documents from ${collection.path}")
+
+            // Use batched writes when possible (up to 20 or 500 operations per batch)
+            val batches = mutableListOf<WriteBatch>()
+            val batchSize = 20
+            var currentBatch = db.batch()
+            var operationsInCurrentBatch = 0
+
+            docs.forEach { doc ->
+                currentBatch.delete(doc.reference)
+                operationsInCurrentBatch++
+
+                if (operationsInCurrentBatch >= batchSize) {
+                    batches.add(currentBatch)
+                    currentBatch = db.batch()
+                    operationsInCurrentBatch = 0
+                }
+            }
+
+            if (operationsInCurrentBatch > 0) {
+                batches.add(currentBatch)
+            }
+
+            // Commit all batches with retries
+            batches.forEachIndexed { index, batch ->
+                var batchCommitted = false
+                for (attempt in 1..maxRetries) {
+                    try {
+                        batch.commit().await()
+                        batchCommitted = true
+                        Log.d("FirestoreChargerRepo", "Batch $index committed successfully")
+                        break
+                    } catch (e: Exception) {
+                        Log.e("FirestoreChargerRepo", "Error committing batch $index (attempt $attempt): ${e.message}")
+                        delay(500 * attempt.toLong()) // Exponential backoff
+                    }
+                }
+
+                if (!batchCommitted) {
+                    allDeleted = false
+                    Log.e("FirestoreChargerRepo", "Failed to commit batch $index after $maxRetries attempts")
+
+                    // If batch failed, try individual deletes as fallback
+                    if (index * batchSize < docs.size) {
+                        val startIdx = index * batchSize
+                        val endIdx = minOf(startIdx + batchSize, docs.size)
+
+                        for (i in startIdx until endIdx) {
+                            val docRef = docs[i].reference
+                            for (attempt in 1..maxRetries) {
+                                try {
+                                    docRef.delete().await()
+                                    Log.d("FirestoreChargerRepo", "Individually deleted document ${docRef.path}")
+                                    break
+                                } catch (e: Exception) {
+                                    Log.e("FirestoreChargerRepo", "Error deleting individual doc ${docRef.path} (attempt $attempt): ${e.message}")
+                                    if (attempt == maxRetries) {
+                                        allDeleted = false
+                                    }
+                                    delay(300) // Wait before retrying
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return allDeleted
+        } catch (e: Exception) {
+            Log.e("FirestoreChargerRepo", "Error in forceDeleteSubcollection: ${e.message}", e)
+            return false
         }
     }
 }
