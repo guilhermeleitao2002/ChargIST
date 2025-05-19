@@ -53,6 +53,7 @@ import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 fun ChargingSlotDetailScreen(
     slotId: String,
     onBackClick: () -> Unit,
+    onChangeChargingSlotDetails: (String) -> Unit,
     viewModel: ChargerViewModel = koinViewModel()
 ) {
     var debugMessage by remember { mutableStateOf<String?>(null) }
@@ -277,7 +278,7 @@ fun ChargingSlotDetailScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     // Change slot details button
-                    OutlinedButton(onClick = { /* Change slot details */ }) {
+                    OutlinedButton(onClick = { onChangeChargingSlotDetails(slotId) }) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = null

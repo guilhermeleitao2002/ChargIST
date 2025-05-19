@@ -59,8 +59,10 @@ interface ChargerRepository {
     suspend fun updateChargingSlot(
         slotId: String,
         speed: ChargingSpeed,
-        isAvailable: Boolean,
-        isDamaged: Boolean
+        available: Boolean,
+        damaged: Boolean,
+        connectorType: ConnectorType? = null,
+        price: Double? = null
     ): NetworkResult<ChargingSlot>
 
     suspend fun reportDamage(slotId: String, isDamaged: Boolean, speed: ChargingSpeed): NetworkResult<ChargingSlot>

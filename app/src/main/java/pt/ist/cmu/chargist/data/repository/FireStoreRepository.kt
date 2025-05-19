@@ -173,9 +173,10 @@ class FirestoreChargerRepository(
         slotId: String,
         speed: ChargingSpeed,
         available: Boolean,
-        damaged: Boolean
+        damaged: Boolean,
+        connectorType: ConnectorType?,
+        price: Double?
     ): NetworkResult<ChargingSlot> = runCatching {
-
         val indexOfSeparator = slotId.indexOf("_")
         if (indexOfSeparator == -1) {
             return NetworkResult.Error("Invalid slotId format: expected format <chargerId>_<speed>_<index>")
@@ -192,15 +193,17 @@ class FirestoreChargerRepository(
             return NetworkResult.Error("Charger ID mismatch: extracted $extractedChargerId does not match slot's chargerId ${slot.chargerId}")
         }
 
-        val updates = mapOf(
+        val updates = mutableMapOf<String, Any>(
             "speed" to speed,
             "available" to available,
             "damaged" to damaged,
             "updatedAt" to System.currentTimeMillis()
         )
+        if (connectorType != null) updates["connectorType"] = connectorType
+        if (price != null) updates["price"] = price
+
         slotRef.update(updates).await()
 
-        // Buscar o documento atualizado
         val updatedSlot = slotRef.get().await().toObject(ChargingSlot::class.java)
             ?: return NetworkResult.Error("Failed to fetch updated slot")
 
@@ -213,7 +216,7 @@ class FirestoreChargerRepository(
         speed: ChargingSpeed
     ): NetworkResult<ChargingSlot> =
         updateChargingSlot(slotId, speed = speed,   // keep previous speed
-            available = !isDamaged, damaged = isDamaged)
+            available = !isDamaged, damaged = isDamaged, connectorType = null, price = null)
 
     /* ---------- nearby services (stub) ---------- */
 

@@ -411,4 +411,20 @@ class ChargerViewModel(
         return true // Return immediately to indicate deletion started
     }
 
+    fun updateChargingSlot(
+        slotId: String,
+        speed: ChargingSpeed,
+        connectorType: ConnectorType,
+        price: Double,
+        isAvailable: Boolean,
+        isDamaged: Boolean
+    ) = viewModelScope.launch {
+        val res = chargerRepository.updateChargingSlot(slotId, speed, isAvailable, isDamaged, connectorType, price)
+        if (res is NetworkResult.Success) {
+            loadChargerDetails(res.data.chargerId)
+        } else if (res is NetworkResult.Error) {
+            _detail.value = _detail.value.copy(error = res.message)
+        }
+    }
+
 }
