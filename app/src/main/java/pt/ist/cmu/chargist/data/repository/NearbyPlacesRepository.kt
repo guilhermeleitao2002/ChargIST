@@ -47,7 +47,7 @@ data class Location(
 )
 
 class NearbyPlacesRepository {
-    private val apiKey = "AIzaSyAU_8dfYDNi471YCS6ja-gZ8Clv4iM7jB4" // Replace with your API key
+    private val apiKey = "AIzaSyAU_8dfYDNi471YCS6ja-gZ8Clv4iM7jB4"
     private val service: GooglePlacesService
 
     init {
@@ -61,7 +61,6 @@ class NearbyPlacesRepository {
 
     suspend fun getNearbyPlaces(location: LatLng, radius: Int = 500): List<NearbyPlace> = withContext(Dispatchers.IO) {
         try {
-            // Try different place types for better results
             val placeTypes = listOf("restaurant", "store", "gas_station", "cafe")
             val results = mutableListOf<NearbyPlace>()
 
@@ -78,7 +77,7 @@ class NearbyPlacesRepository {
                                 result.geometry.location.lng
                             )
 
-                            // Calculate rough distance - ideally would use actual distance calculation
+                            // calculate distance
                             val distance = calculateDistance(location, placeLocation).toInt()
 
                             NearbyPlace(

@@ -5,7 +5,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import androidx.room.Room
 
-/* Google Play services & Firebase */
+/* GooglePlayServices & Firebase */
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
@@ -47,10 +47,6 @@ val appModule = module {
     single     { androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager }
 }
 
-/* ───────────────────────────── ROOM (local cache) ───────────────────────────
-   You can keep these beans if you still use Room elsewhere; they no longer feed
-   the ChargerRepository. Feel free to delete once the whole project is on Firestore.
-────────────────────────────────────────────────────────────────────────────── */
 val dataModule = module {
     single {
         Room.databaseBuilder(
@@ -59,12 +55,6 @@ val dataModule = module {
             "chargist-db"
         ).build()
     }
-
-    // DAOs (leave or remove – not referenced by the Firestore repo)
-//    single { get<ChargISTDatabase>().userDao() }
-
-    // User repo still backed by Room
-    //single<UserRepository> { UserRepositoryImpl(get(), get()) }
 }
 
 /* ───────────────────────────── NETWORK (Retrofit) ─────────────────────────── */
@@ -78,13 +68,6 @@ val networkModule = module {
             .build()
     }
 
-    single {
-        Retrofit.Builder()
-            .baseUrl("https://your-backend-url.com/api/")   // TODO replace when you have one
-            .client(get())
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
 
     single {
         NearbyPlacesRepository()
@@ -99,7 +82,7 @@ val firebaseModule = module {
     single {
         FirebaseFirestore.getInstance().apply {
             val settings = FirebaseFirestoreSettings.Builder()
-                .setPersistenceEnabled(true)   // turn on the local disk cache
+                .setPersistenceEnabled(true)   // allow for local cache
                 .build()
             firestoreSettings = settings
         }
@@ -115,11 +98,11 @@ val firebaseModule = module {
         FirebaseAuthRepository(
             androidContext(),
             get(),               // FirebaseAuth
-            get()                // FirebaseFirestore  (now with cache‑on)
+            get()                // FirebaseFirestore
         )
     }
 
-    /* Charger repository – pure Firestore implementation */
+    /* Charger repository (firestore) */
     single<ChargerRepository> { FirestoreChargerRepository(get()) }
 }
 
@@ -141,7 +124,7 @@ val viewModelModule = module {
         ChargerViewModel(
             get(),   // ChargerRepository
             get(),   // UserRepository
-            get()    // ImageStorageRepository  ← add this
+            get()    // ImageStorageRepository
         )
     }
 }

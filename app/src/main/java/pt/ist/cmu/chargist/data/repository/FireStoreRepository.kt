@@ -169,6 +169,8 @@ class FirestoreChargerRepository(
         NetworkResult.Success(slot)
     }.getOrElse { NetworkResult.Error(it.message ?: "Slot create failed") }
 
+
+    // ---------- update charging slot ---------- */
     override suspend fun updateChargingSlot(
         slotId: String,
         speed: ChargingSpeed,
@@ -210,6 +212,8 @@ class FirestoreChargerRepository(
         NetworkResult.Success(updatedSlot)
     }.getOrElse { NetworkResult.Error(it.message ?: "Update failed") }
 
+
+    // ---------- report damage ---------- */
     override suspend fun reportDamage(
         slotId: String,
         isDamaged: Boolean,

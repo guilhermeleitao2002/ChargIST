@@ -41,13 +41,11 @@ interface ChargerRepository {
         paymentSystems: List<PaymentSystem> = emptyList()
     ): NetworkResult<Charger>
 
+    // function calls to firebase
     suspend fun updateFavoriteStatus(id: String, isFavorite: Boolean): NetworkResult<Charger>
     suspend fun deleteCharger(chargerId: String): NetworkResult<Unit>
-    /* ─────── slots ─────── */
     suspend fun getChargingSlotsForCharger(chargerId: String): List<ChargingSlot>
-
     suspend fun findChargerBySlotId(slotId: String): NetworkResult<Pair<Charger, ChargingSlot>>
-
 
     suspend fun createChargingSlot(
         chargerId: String,
