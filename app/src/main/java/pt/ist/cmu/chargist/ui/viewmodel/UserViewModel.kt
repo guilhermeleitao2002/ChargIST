@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pt.ist.cmu.chargist.data.model.User
 import pt.ist.cmu.chargist.data.repository.AuthRepository
@@ -21,7 +20,7 @@ class UserViewModel(private val repo: AuthRepository) : ViewModel() {
     private val _state = MutableStateFlow(UserState())
     val userState: StateFlow<UserState> = _state
 
-    init {                       // listen to auth changes forever
+    init {
         viewModelScope.launch {
             repo.currentUser().collect { user ->
                 _state.value = UserState(user = user)

@@ -69,8 +69,6 @@ class FirestoreChargerRepository(
         )
 
     /* ---------- create / mutate ---------- */
-    /* only the createCharger function shown – keep the rest of the file unchanged */
-
     override suspend fun createCharger(
         name: String,
         location: LatLng,
@@ -94,15 +92,12 @@ class FirestoreChargerRepository(
         )
 
         return runCatching {
-            // Create the charger document
             chargerDoc(chargerId).set(charger).await()
 
-            // Create individual slot documents in the subcollection
             for (slot in chargingSlots) {
                 slotsCol(chargerId).document(slot.id).set(slot).await()
             }
 
-            // Create payment systems subcollection
             val paymentSystemsCol = chargerDoc(chargerId).collection("paymentSystems")
             for (paymentSystem in paymentSystems) {
                 paymentSystemsCol.document(paymentSystem.id).set(paymentSystem).await()
@@ -118,11 +113,6 @@ class FirestoreChargerRepository(
     } catch (e: Exception) {
         NetworkResult.Error(e.message ?: "Failed to load chargers")
     }
-
-    override suspend fun updateFavoriteStatus(
-        chargerId: String,
-        isFavorite: Boolean
-    ): NetworkResult<Charger> = TODO("Replaced by addFavorite/removeFavorite")
 
     override suspend fun addFavorite(userId: String, chargerId: String): NetworkResult<Charger> = runCatching {
         chargerDoc(chargerId).update(
@@ -242,16 +232,13 @@ class FirestoreChargerRepository(
     ): Flow<NetworkResult<ChargerWithDetails>> = flow {
         emit(NetworkResult.Loading)
 
-        // Get the charger document with a real-time listener
         chargerDoc(chargerId).snapshots().collect { snapshot ->
             val charger = snapshot.toObject(Charger::class.java)
                 ?: return@collect emit(NetworkResult.Error("Charger not found"))
 
-            // Use a real-time listener for the charging slots
             slotsCol(chargerId).snapshots().collect { slotsSnapshot ->
                 val slots = slotsSnapshot.toObjects(ChargingSlot::class.java)
 
-                // Fetch payment systems
                 val paymentSystems = chargerDoc(chargerId).collection("paymentSystems")
                     .get().await().toObjects(PaymentSystem::class.java)
 
@@ -278,32 +265,26 @@ class FirestoreChargerRepository(
         paymentSystems: List<PaymentSystem>?,
         userLocation: LatLng?
     ): NetworkResult<List<Charger>> = try {
-        // Explicitly declare queryRef as a Query to avoid type mismatch
         var queryRef: Query = chargersCol
 
-        // Apply name query filter
         if (!query.isNullOrBlank()) {
             queryRef = queryRef.whereGreaterThanOrEqualTo("name", query)
                 .whereLessThanOrEqualTo("name", query + "\uf8ff")
         }
 
 
-        // Fetch chargers
         val chargers = queryRef.get().await().toObjects(Charger::class.java)
         println("Fetched ${chargers.size} chargers after name query")
 
-        // Apply filters involving subcollections client-side
         val filteredChargers = chargers.filter { charger ->
             val slots = slotsCol(charger.id).get().await().toObjects(ChargingSlot::class.java)
             println("Charger ${charger.name} has ${slots.size} slots: ${slots.map { it.price }}")
 
-            // Exclude chargers with no slots
             if (slots.isEmpty()) {
                 println("Excluding ${charger.name} due to no slots")
                 return@filter false
             }
 
-            // Fetch payment systems for this charger
             val chargerPaymentSystems = chargerDoc(charger.id).collection("paymentSystems")
                 .get().await().toObjects(PaymentSystem::class.java)
             println("Charger ${charger.name} has payment systems: ${chargerPaymentSystems.map { it.name }}")
@@ -367,7 +348,6 @@ class FirestoreChargerRepository(
         return earthRadius * c // Distância em metros
     }
 
-    // Estimativa simples de tempo de viagem (segundos), assumindo velocidade média de 50 km/h
     private fun estimateTravelTime(distanceMeters: Double): Double {
         val speedKmh = 50.0 // Velocidade média em km/h
         val speedMs = speedKmh / 3.6 // Conversão para m/s
@@ -377,24 +357,20 @@ class FirestoreChargerRepository(
     /* ---------- find charger by slot id ---------- */
 
     override suspend fun findChargerBySlotId(slotId: String): NetworkResult<Pair<Charger, ChargingSlot>> = runCatching {
-        // Extrair o chargerId como a parte antes do primeiro "_"
         val indexOfSeparator = slotId.indexOf("_")
         if (indexOfSeparator == -1) {
             return NetworkResult.Error("Invalid slotId format: expected format <chargerId>_<speed>-<index>")
         }
         val extractedChargerId = slotId.substring(0, indexOfSeparator)
 
-        // Buscar o ChargingSlot na subcoleção
         val slotDoc = slotsCol(extractedChargerId).document(slotId).get().await()
         val slot = slotDoc.toObject(ChargingSlot::class.java)
             ?: return NetworkResult.Error("Slot not found")
 
-        // Validar se o chargerId do slot corresponde ao extraído
         if (slot.chargerId != extractedChargerId) {
             return NetworkResult.Error("Charger ID mismatch: extracted $extractedChargerId does not match slot's chargerId ${slot.chargerId}")
         }
 
-        // Buscar o Charger
         val charger = chargerDoc(extractedChargerId).get().await().toObject(Charger::class.java)
             ?: return NetworkResult.Error("Charger not found")
 
@@ -403,14 +379,10 @@ class FirestoreChargerRepository(
 
     /* ---------- delete charger ---------- */
     override suspend fun deleteCharger(chargerId: String): NetworkResult<Unit> = runCatching {
-        // Delete all charging slots with retries
         forceDeleteSubcollection(slotsCol(chargerId))
 
-        // Delete all payment systems with retries
         forceDeleteSubcollection(chargerDoc(chargerId).collection("paymentSystems"))
 
-        // Delete the main charger document with retries
-        var chargerDeleted = false
         for (attempt in 1..10) {
             try {
                 chargerDoc(chargerId).delete().await()
@@ -428,11 +400,9 @@ class FirestoreChargerRepository(
         val maxRetries = 10
 
         try {
-            // Get all documents in the collection
             val docs = collection.get().await().documents
             Log.d("FirestoreChargerRepo", "Attempting to delete ${docs.size} documents from ${collection.path}")
 
-            // Use batched writes when possible (up to 20 or 500 operations per batch)
             val batches = mutableListOf<WriteBatch>()
             val batchSize = 20
             var currentBatch = db.batch()
@@ -453,7 +423,6 @@ class FirestoreChargerRepository(
                 batches.add(currentBatch)
             }
 
-            // Commit all batches with retries
             batches.forEachIndexed { index, batch ->
                 var batchCommitted = false
                 for (attempt in 1..maxRetries) {
@@ -464,7 +433,7 @@ class FirestoreChargerRepository(
                         break
                     } catch (e: Exception) {
                         Log.e("FirestoreChargerRepo", "Error committing batch $index (attempt $attempt): ${e.message}")
-                        delay(500 * attempt.toLong()) // Exponential backoff
+                        delay(500 * attempt.toLong())
                     }
                 }
 
@@ -472,7 +441,6 @@ class FirestoreChargerRepository(
                     allDeleted = false
                     Log.e("FirestoreChargerRepo", "Failed to commit batch $index after $maxRetries attempts")
 
-                    // If batch failed, try individual deletes as fallback
                     if (index * batchSize < docs.size) {
                         val startIdx = index * batchSize
                         val endIdx = minOf(startIdx + batchSize, docs.size)

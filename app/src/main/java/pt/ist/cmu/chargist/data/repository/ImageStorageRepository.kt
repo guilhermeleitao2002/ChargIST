@@ -10,19 +10,14 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import androidx.core.graphics.scale
 
-/**
- * HELPER: Encodes the selected image into a compressed Base‑64 JPEG string
- */
 class ImageStorageRepository(
     private val context: Context
 ) {
 
-    /** Uri → Base‑64 JPEG */
     suspend fun encodeImage(uri: Uri): String =
         ImageCodec.uriToBase64(context, uri)
 }
 object ImageCodec {
-    /** Uri → compressed JPEG → Base‑64 */
     suspend fun uriToBase64(context: Context, uri: Uri): String =
         withContext(Dispatchers.IO) {
             val bitmap = BitmapFactory.decodeStream(
@@ -37,7 +32,6 @@ object ImageCodec {
             scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
             Base64.encodeToString(out.toByteArray(), Base64.DEFAULT)
         }
-    /** Base‑64 → ByteArray (for Coil) */
     fun base64ToBytes(data: String): ByteArray =
         Base64.decode(data, Base64.DEFAULT)
 }

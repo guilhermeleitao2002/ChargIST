@@ -2,31 +2,20 @@ package pt.ist.cmu.chargist.data.model
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
-import androidx.room.Ignore
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.firestore.IgnoreExtraProperties
 import pt.ist.cmu.chargist.util.Converters
 
-/* ───────────── enums ───────────── */
-
 enum class ChargingSpeed { FAST, MEDIUM, SLOW }
 enum class ConnectorType  { CCS2, TYPE2 }
-
-/* ───────────── simple model ───────────── */
 
 data class PaymentSystem(
     val id: String = "",
     val name: String = "",
     val iconResId: Int? = null
 )
-
-/* ───────────── Firestore‑ / Room‑backed entities ─────────────
-   → every property has a default value        (Firestore needs this)
-   → @IgnoreExtraProperties ignores extra db fields
-   → Room annotations kept for local caching
-───────────────────────────────────────────────────────────────── */
 
 @IgnoreExtraProperties
 @TypeConverters(Converters::class)
@@ -42,9 +31,6 @@ data class Charger(
     val createdAt: Long = 0L,
     val updatedAt: Long? = 0L,
     val paymentSystems: List<PaymentSystem> = emptyList(),
-
-    // Add a field for direct slot storage
-//    @Ignore // This field won't be stored in Room, only in Firestore
 ) {
     fun getLatLng(): LatLng = LatLng(latitude, longitude)
 }
@@ -84,11 +70,9 @@ data class NearbyService(
     @PrimaryKey val id: String = "",
     val chargerId: String = "",
     val name: String = "",
-    val type: String = "",      // e.g. "FOOD", "TOILET", "AIR_WATER"
-    val distance: Int = 0       // metres
+    val type: String = "",
+    val distance: Int = 0
 )
-
-/* ───────────── composite for UI ───────────── */
 
 data class ChargerWithDetails(
     val charger: Charger              = Charger(),

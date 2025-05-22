@@ -12,9 +12,6 @@ import pt.ist.cmu.chargist.ui.screens.*
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
 
-/* ------------------------------------------------------------------------- */
-/*  Route helpers – keep every navigation string in one place                */
-/* ------------------------------------------------------------------------- */
 object Route {
     const val HOME           = "home"
     const val ADD_CHARGER    = "add_charger"
@@ -31,9 +28,6 @@ object Route {
     fun changeChargingSlotDetails(id: String) = "$CHANGE_SLOT_DETAILS/$id"
 }
 
-/* ------------------------------------------------------------------------- */
-/*  Graph                                                                    */
-/* ------------------------------------------------------------------------- */
 @Composable
 fun ChargISTNavigation() {
 
@@ -47,7 +41,7 @@ fun ChargISTNavigation() {
         startDestination = Route.HOME
     ) {
 
-        /* ── Home (map) ──────────────────────────────────────────────── */
+        /* Home (map) */
         composable(Route.HOME) {
             HomeScreen(
                 onChargerClick    = { id -> nav.navigate(Route.charger(id)) },
@@ -59,7 +53,7 @@ fun ChargISTNavigation() {
             )
         }
 
-        /* ── Add‑charger wizard ──────────────────────────────────────── */
+        /* Add‑charger */
         composable(Route.ADD_CHARGER) {
             AddChargerScreen(
                 onBackClick = { nav.popBackStack() },
@@ -67,7 +61,7 @@ fun ChargISTNavigation() {
             )
         }
 
-        /* ── Search list ─────────────────────────────────────────────── */
+        /* Search list */
         composable(Route.SEARCH) {
             SearchScreen(
                 onBackClick   = { nav.popBackStack() },
@@ -75,12 +69,12 @@ fun ChargISTNavigation() {
             )
         }
 
-        /* ── User profile ────────────────────────────────────────────── */
+        /* User profile */
         composable(Route.PROFILE) {
             UserProfileScreen( onBackClick = { nav.popBackStack() } )
         }
 
-        /* ── Charger details ─────────────────────────────────────────── */
+        /* Charger details */
         composable(
             route = "${Route.CHARGER_DETAIL}/{chargerId}",
             arguments = listOf(navArgument("chargerId"){ type = NavType.StringType })
@@ -97,7 +91,7 @@ fun ChargISTNavigation() {
             )
         }
 
-        /* ── Single slot details ─────────────────────────────────────── */
+        /* Single slot details */
         composable(
             route     = "${Route.SLOT_DETAIL}/{slotId}",
             arguments = listOf( navArgument("slotId"){ type = NavType.StringType } )
@@ -110,7 +104,7 @@ fun ChargISTNavigation() {
             )
         }
 
-        /* ── Add charging slot ───────────────────────────────────────── */
+        /* Add charging slot */
         composable(
             route = "${Route.ADD_CHARGING_SLOT}/{chargerId}",
             arguments = listOf(navArgument("chargerId") { type = NavType.StringType })
@@ -123,7 +117,7 @@ fun ChargISTNavigation() {
             )
         }
 
-        /*────Change Charging Slot Details─────────────────────────────*/
+        /* Change Charging Slot Details */
 
         composable(
             route = "${Route.CHANGE_SLOT_DETAILS}/{slotId}"

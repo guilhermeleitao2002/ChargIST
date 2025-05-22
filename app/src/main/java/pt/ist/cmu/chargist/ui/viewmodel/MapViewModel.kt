@@ -87,18 +87,6 @@ class MapViewModel(
         }
     }
 
-    fun loadChargersInBounds(bounds: LatLngBounds) {
-        viewModelScope.launch {
-            try {
-                chargerRepository.getChargersInBounds(bounds).collectLatest { chargers ->
-                    _mapState.value = _mapState.value.copy(chargers = chargers, isLoading = false)
-                }
-            } catch (e: Exception) {
-                _mapState.value = _mapState.value.copy(error = "Error loading chargers in bounds aa: ${e.message}", isLoading = false)
-            }
-        }
-    }
-
     @SuppressLint("MissingPermission")
     private suspend fun getCurrentLocation(): Location = suspendCancellableCoroutine { cont ->
         fusedLocationClient.getCurrentLocation(
@@ -108,38 +96,6 @@ class MapViewModel(
             if (location != null) cont.resume(location) else
                 cont.resumeWithException(Exception("Location is null"))
         }.addOnFailureListener { e -> cont.resumeWithException(e) }
-    }
-
-    private suspend fun getLastLocationSuspend(): Location = suspendCoroutine { continuation ->
-        try {
-            if (ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                fusedLocationClient.lastLocation
-                    .addOnSuccessListener { location ->
-                        if (location != null) {
-                            continuation.resume(location)
-                        } else {
-                            continuation.resumeWithException(Exception("Location is null"))
-                        }
-                    }
-                    .addOnFailureListener { e ->
-                        continuation.resumeWithException(e)
-                    }
-            } else {
-                continuation.resumeWithException(SecurityException("Location permission not granted"))
-            }
-        } catch (e: Exception) {
-            continuation.resumeWithException(e)
-        }
-    }
-
-    fun setLocationAndMoveCameraManually(location: LatLng) {
-        viewModelScope.launch {
-            _mapState.value = _mapState.value.copy(currentLocation = location)
-        }
     }
 
     fun searchAddressUsingPlaceId(placeId: String) {
@@ -201,9 +157,5 @@ class MapViewModel(
     @OptIn(ExperimentalCoroutinesApi::class)
     fun markFocusConsumed() {
         _focusRequests.resetReplayCache()
-    }
-
-    fun updateError(error: String) {
-        _mapState.value = _mapState.value.copy(error = error, isLoading = false)
     }
 }

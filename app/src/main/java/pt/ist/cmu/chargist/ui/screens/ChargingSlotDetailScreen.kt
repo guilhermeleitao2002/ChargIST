@@ -109,7 +109,6 @@ fun ChargingSlotDetailScreen(
                         color = MaterialTheme.colorScheme.error
                     )
 
-                    // Show debug info if available
                     debugMessage?.let {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -135,9 +134,9 @@ fun ChargingSlotDetailScreen(
                         .clip(CircleShape)
                         .background(
                             when (slot.speed) {
-                                ChargingSpeed.FAST -> Color(0xFF4CAF50) // Green
-                                ChargingSpeed.MEDIUM -> Color(0xFFFFC107) // Amber
-                                ChargingSpeed.SLOW -> Color(0xFFFF5722) // Deep Orange
+                                ChargingSpeed.FAST -> Color(0xFF4CAF50)
+                                ChargingSpeed.MEDIUM -> Color(0xFFFFC107)
+                                ChargingSpeed.SLOW -> Color(0xFFFF5722)
                             }
                         ),
                     contentAlignment = Alignment.Center
@@ -234,7 +233,7 @@ fun ChargingSlotDetailScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Price information
+                // Price info
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),

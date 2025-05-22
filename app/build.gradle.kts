@@ -4,12 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
 
-    //id("com.android.application")
-    //id("com.google.gms.google-services")
-
-
     kotlin("kapt")
-    //id("com.google.devtools.ksp") version "2.0.21-1.0.15"
 }
 
 android {
@@ -24,8 +19,6 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        //manifestPlaceholders["MAPS_API_KEY"] = project.findProperty("MAPS_API_KEY") as String? ?: ""
     }
 
     buildTypes {

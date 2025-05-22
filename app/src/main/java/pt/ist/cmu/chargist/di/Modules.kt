@@ -1,41 +1,27 @@
 package pt.ist.cmu.chargist.di
 
-/* Kotlin / Android */
 import android.content.Context
 import android.net.ConnectivityManager
-
-/* GooglePlayServices & Firebase */
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-
-/* Networking */
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-
-/* Koin */
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
-
-/* Project – data layer */
 import pt.ist.cmu.chargist.data.repository.AuthRepository
 import pt.ist.cmu.chargist.data.repository.ChargerRepository
 import pt.ist.cmu.chargist.data.repository.FirestoreChargerRepository
 import pt.ist.cmu.chargist.data.repository.FirebaseAuthRepository
-
-/* Project – view‑models */
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
-
 import java.util.concurrent.TimeUnit
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import pt.ist.cmu.chargist.data.repository.ImageStorageRepository
 import pt.ist.cmu.chargist.data.repository.NearbyPlacesRepository
-
-/* ───────────────────── APP‑WIDE SINGLETONS ───────────────────── */
 
 val appModule = module {
     single     { androidContext().getSharedPreferences("chargist_prefs", Context.MODE_PRIVATE) }
@@ -44,7 +30,6 @@ val appModule = module {
 }
 
 
-/* ───────────────────────────── NETWORK (Retrofit) ─────────────────────────── */
 val networkModule = module {
     single {
         val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
@@ -60,10 +45,9 @@ val networkModule = module {
         NearbyPlacesRepository()
     }
 }
-/* ───────────────────────────── FIREBASE  ──────────────────────────────── */
+
 val firebaseModule = module {
 
-    /* Core Firebase singletons */
     single { FirebaseAuth.getInstance() }
 
     single {
@@ -89,12 +73,10 @@ val firebaseModule = module {
         )
     }
 
-    /* Charger repository (firestore) */
     single<ChargerRepository> { FirestoreChargerRepository(get()) }
 }
 
 
-/* ───────────────────────────── VIEW‑MODELS ──────────────────────────────── */
 val viewModelModule = module {
 
     viewModel { UserViewModel(get()) }

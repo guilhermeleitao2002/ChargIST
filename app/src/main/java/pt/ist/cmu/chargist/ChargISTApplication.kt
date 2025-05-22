@@ -9,9 +9,6 @@ import pt.ist.cmu.chargist.di.firebaseModule
 import pt.ist.cmu.chargist.di.networkModule
 import pt.ist.cmu.chargist.di.viewModelModule
 
-/**
- * Application entry‑point.
- */
 class ChargISTApplication : Application() {
 
     override fun onCreate() {

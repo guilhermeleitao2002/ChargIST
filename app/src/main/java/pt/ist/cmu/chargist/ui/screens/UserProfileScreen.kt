@@ -18,14 +18,10 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
 
-/* ──────────────────── small helpers ──────────────────── */
-
 private fun String.normalisedEmail(): String = trim().lowercase()
 
 private fun String.isValidEmail(): Boolean =
     isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(normalisedEmail()).matches()
-
-/* ─────────────────────────  MAIN SCREEN  ───────────────────────── */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +31,6 @@ fun UserProfileScreen(
 ) {
     val userState by viewModel.userState.collectAsState()
 
-    /* local UI state */
     var username       by remember { mutableStateOf("") }
     var email          by remember { mutableStateOf("") }
     var password       by remember { mutableStateOf("") }
@@ -45,7 +40,6 @@ fun UserProfileScreen(
     val snack     = remember { SnackbarHostState() }
     val coroutine = rememberCoroutineScope()
 
-    /* surface ViewModel errors */
     LaunchedEffect(userState.error) {
         userState.error?.let { coroutine.launch { snack.showSnackbar(it) } }
     }
@@ -135,8 +129,6 @@ fun UserProfileScreen(
     }
 }
 
-/* ─────────────────────────  SUB‑COMPOSABLES  ───────────────────────── */
-
 @Composable
 private fun LoggedInContent(
     username: String,
@@ -216,8 +208,6 @@ private fun WelcomeScreen(onCreateAccount: () -> Unit, onLogin: () -> Unit) {
     }
 }
 
-/* ───────────── Sign‑up / Log‑in forms reuse generic AuthForm ───────────── */
-
 @Composable
 private fun SignUpForm(
     email: String,
@@ -269,8 +259,6 @@ private fun LoginForm(
         submitEnabled= email.isValidEmail() && password.isNotBlank()
     )
 }
-
-/* ───────────────────── generic Auth form UI ───────────────────── */
 
 @Composable
 private fun AuthForm(
@@ -343,8 +331,6 @@ private fun AuthForm(
         TextButton(onClick = onBottomLink) { Text(bottomLink) }
     }
 }
-
-/* ───────────────────────── Profile menu item ───────────────────────── */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -64,7 +64,6 @@ class NearbyPlacesRepository {
             val placeTypes = listOf("restaurant", "store", "gas_station", "cafe")
             val results = mutableListOf<NearbyPlace>()
 
-            // Query for each place type
             for (type in placeTypes) {
                 try {
                     val locationString = "${location.latitude},${location.longitude}"
@@ -95,7 +94,6 @@ class NearbyPlacesRepository {
                 }
             }
 
-            // Return real results if available, otherwise return mock data
             if (results.isNotEmpty()) {
                 results.sortedBy { it.distance }
             } else {

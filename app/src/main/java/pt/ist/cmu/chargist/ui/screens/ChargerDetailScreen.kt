@@ -252,7 +252,6 @@ fun ChargerDetailScreen(
             }
         }
 
-        // Add the confirmation dialog here
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
@@ -264,9 +263,8 @@ fun ChargerDetailScreen(
                             val success = chargerViewModel.deleteCharger(chargerId)
                             showDeleteDialog = false
                             if (success) {
-                                // Show immediate feedback
                                 Toast.makeText(context, "Charger deleted!", Toast.LENGTH_SHORT).show()
-                                onBackClick() // Navigate back immediately
+                                onBackClick()
                             }
                         }
                     ) { Text("Delete") }

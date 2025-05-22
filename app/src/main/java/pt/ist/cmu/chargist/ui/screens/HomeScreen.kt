@@ -25,7 +25,6 @@ import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.Charger
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
-import com.google.android.libraries.places.api.model.AutocompletePrediction
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -201,21 +200,4 @@ fun HomeScreen(
             }
         )
     }
-}
-
-@Composable
-fun ChargerMarker(
-    charger: Charger,
-    isFavorite: Boolean,
-    onClick: () -> Unit
-) {
-    val hue = if (isFavorite) BitmapDescriptorFactory.HUE_ROSE
-    else BitmapDescriptorFactory.HUE_GREEN
-
-    Marker(
-        state = MarkerState(charger.getLatLng()),
-        title = charger.name,
-        icon = BitmapDescriptorFactory.defaultMarker(hue),
-        onClick = { onClick(); true }
-    )
 }

@@ -16,8 +16,6 @@ import pt.ist.cmu.chargist.data.repository.AuthRepository
 import pt.ist.cmu.chargist.data.repository.NearbyPlacesRepository
 import kotlinx.coroutines.Dispatchers
 
-/* ───────────── state holders ───────────── */
-
 data class ChargerDetailState(
     val chargerWithDetails: ChargerWithDetails? = null,
     val allChargers: List<Charger> = emptyList(),
@@ -56,8 +54,6 @@ data class SearchState(
     val paymentSystems: List<PaymentSystem>? = null,
     val userLocation: LatLng? = null)
 
-/* ───────────── VM ───────────── */
-
 class ChargerViewModel(
     private val chargerRepository: ChargerRepository,
     private val authRepository: AuthRepository,
@@ -76,7 +72,6 @@ class ChargerViewModel(
     val searchState: StateFlow<SearchState> = _search.asStateFlow()
 
     private val _allChargers = MutableStateFlow<List<Charger>>(emptyList())
-    val allChargers: StateFlow<List<Charger>> = _allChargers.asStateFlow()
 
     private val nearbyPlacesRepository = NearbyPlacesRepository()
 
@@ -106,12 +101,10 @@ class ChargerViewModel(
             charger.favoriteUsers + userId
         }
 
-        // Update the UI immediately with optimistic update
         val updatedCharger = charger.copy(favoriteUsers = newFavoriteUsers)
         val updatedDetails = currentDetails.copy(charger = updatedCharger)
         _detail.value = _detail.value.copy(chargerWithDetails = updatedDetails)
 
-        // Then perform the actual network request in the background
         if (newFavoriteUsers.contains(userId)) {
             chargerRepository.addFavorite(userId, charger.id)
         } else {
@@ -130,14 +123,12 @@ class ChargerViewModel(
     fun createCharger() = viewModelScope.launch {
         var s = _create.value
 
-        /* 1 · quick validation ------------------------------------------------ */
         if (s.name.isBlank()) { _create.value = s.copy(error = "Name cannot be empty"); return@launch }
         if (s.location == null) { _create.value = s.copy(error = "Please select a location"); return@launch }
         if (s.paymentSystems.isEmpty()) { _create.value = s.copy(error = "Please select at least one payment method"); return@launch }
 
         _create.value = s.copy(isSubmitting = true, error = null)
 
-        /* 2 · who is the current user?  -------------------------------------- */
         val user = authRepository.currentUser().first()
         if (user == null) {
             _create.value = s.copy(
@@ -148,10 +139,8 @@ class ChargerViewModel(
         }
         val uid = user.id
 
-        /* 3 · deterministic id for the document & picture -------------------- */
         val chargerId = UUID.randomUUID().toString()
 
-        /* 4 · encode picture (if any) ---------------------------------------- */
         val base64: String? = try {
             s.imageUri?.let { imageRepository.encodeImage(it) }
         } catch (t: Throwable) {
@@ -160,7 +149,6 @@ class ChargerViewModel(
             return@launch
         }
 
-        /* 5 · create charging slots ------------------------------------------ */
         val slots = mutableListOf<ChargingSlot>()
 
         // Add fast charging slots
@@ -170,8 +158,8 @@ class ChargerViewModel(
                 id = slotId,
                 chargerId = chargerId,
                 speed = ChargingSpeed.FAST,
-                connectorType = s.fastConnectorType,  // Use custom connector type
-                price = s.fastPrice,                  // Use custom price
+                connectorType = s.fastConnectorType,
+                price = s.fastPrice,
                 available = true,
                 damaged = false,
                 updatedAt = System.currentTimeMillis()
@@ -185,8 +173,8 @@ class ChargerViewModel(
                 id = slotId,
                 chargerId = chargerId,
                 speed = ChargingSpeed.MEDIUM,
-                connectorType = s.mediumConnectorType, // Use custom connector type
-                price = s.mediumPrice,                 // Use custom price
+                connectorType = s.mediumConnectorType,
+                price = s.mediumPrice,
                 available = true,
                 damaged = false,
                 updatedAt = System.currentTimeMillis()
@@ -200,22 +188,22 @@ class ChargerViewModel(
                 id = slotId,
                 chargerId = chargerId,
                 speed = ChargingSpeed.SLOW,
-                connectorType = s.slowConnectorType,  // Use custom connector type
-                price = s.slowPrice,                  // Use custom price
+                connectorType = s.slowConnectorType,
+                price = s.slowPrice,
                 available = true,
                 damaged = false,
                 updatedAt = System.currentTimeMillis()
             ))
         }
 
-        /* 6 · write to Firestore --------------------------------------------- */
+        // write to Firestore
         when (val res = chargerRepository.createCharger(
             name = s.name,
             location = s.location,
             imageData = base64,
             userId = uid,
             chargingSlots = slots,
-            paymentSystems = s.paymentSystems,  // Pass payment systems to repository
+            paymentSystems = s.paymentSystems,
             chargerId = chargerId
         )) {
             is NetworkResult.Success -> _create.value = ChargerCreationState(isSuccess = true)
@@ -300,7 +288,6 @@ class ChargerViewModel(
         }
 
     /* ---------- nearby places ---------- */
-
     fun loadNearbyPlaces(location: LatLng) {
         val currentDetails = _detail.value.chargerWithDetails ?: return
 
@@ -308,7 +295,6 @@ class ChargerViewModel(
             try {
                 val places = nearbyPlacesRepository.getNearbyPlaces(location)
 
-                // Convert NearbyPlace objects to NearbyService objects
                 val services = places.map { place ->
                     NearbyService(
                         id = place.id,
@@ -319,7 +305,6 @@ class ChargerViewModel(
                     )
                 }
 
-                // Update state with the new nearby services
                 if (services.isNotEmpty()) {
                     val updatedDetails = currentDetails.copy(
                         nearbyServices = services
@@ -334,16 +319,11 @@ class ChargerViewModel(
 
     /* ---------- payment systems ---------- */
     fun updatePaymentSystems(systems: List<PaymentSystem>) {
-        // Log the current state before update
         Log.d("ChargerViewModel", "Current payment systems: ${_create.value.paymentSystems.joinToString(", ") { it.name }}")
-
-        // Log what we're updating to
         Log.d("ChargerViewModel", "Updating to: ${systems.joinToString(", ") { it.name }}")
 
-        // Update the state
         _create.update { it.copy(paymentSystems = systems) }
 
-        // Log the state after update to confirm it worked
         Log.d("ChargerViewModel", "After update: ${_create.value.paymentSystems.joinToString(", ") { it.name }}")
     }
 
@@ -351,28 +331,22 @@ class ChargerViewModel(
         val currentSystems = _create.value.paymentSystems.toMutableList()
 
         if (isSelected && !currentSystems.any { it.id == system.id }) {
-            // Add the system if it's not already there
             currentSystems.add(system)
         } else if (!isSelected) {
-            // Remove the system
             currentSystems.removeAll { it.id == system.id }
         }
 
         Log.d("ChargerViewModel", "Toggled ${system.name} to $isSelected. Now have ${currentSystems.size} systems")
 
-        // Update the state with the new list
         _create.update { it.copy(paymentSystems = currentSystems) }
     }
 
     /* ---------- slots ---------- */
-    suspend fun getChargingSlotsForCharger(chargerId: String): List<ChargingSlot> =
-        chargerRepository.getChargingSlotsForCharger(chargerId)
-
     fun loadChargerBySlotId(slotId: String) = viewModelScope.launch {
         _detail.value = ChargerDetailState(isLoading = true)
         when (val result = chargerRepository.findChargerBySlotId(slotId)) {
             is NetworkResult.Success -> {
-                val (charger, slot) = result.data
+                val (charger, _) = result.data
                 loadChargerDetails(charger.id)
             }
             is NetworkResult.Error -> {
@@ -406,7 +380,7 @@ class ChargerViewModel(
                 }
             }
         }
-        return true // Return immediately to indicate deletion started
+        return true
     }
 
     fun updateChargingSlot(

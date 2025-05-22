@@ -55,7 +55,6 @@ fun SearchScreen(
         viewModel.updateUserLocation(userLocation)
     }
 
-    // Debounce the search query
     LaunchedEffect(searchState.query) {
         delay(300) // Wait 300ms after the last change
         if (searchState.query != "") {
@@ -91,7 +90,6 @@ fun SearchScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            /* ───── search bar ───── */
             OutlinedTextField(
                 value = searchState.query,
                 onValueChange = { viewModel.updateSearchQuery(it) },
@@ -108,7 +106,6 @@ fun SearchScreen(
                 shape = RoundedCornerShape(24.dp)
             )
 
-            /* ───── results list ───── */
             when {
                 searchState.isLoading -> CenterBox { Text("Searching…") }
                 searchState.error != null -> CenterBox {
@@ -358,7 +355,7 @@ fun SearchScreen(
                             scope.launch { viewModel.searchChargers() }
                         },
                         valueRange = 0f..1f,
-                        steps = 19 // Steps of 0.05 between 0 and 1 (20 intervals)
+                        steps = 19
                     )
                 }
 

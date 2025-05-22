@@ -23,9 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -39,7 +37,6 @@ import org.koin.androidx.compose.koinViewModel
 import pt.ist.cmu.chargist.data.model.PaymentSystem
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
-import pt.ist.cmu.chargist.data.model.ChargingSpeed
 import pt.ist.cmu.chargist.data.model.ConnectorType
 import androidx.compose.ui.text.input.KeyboardType
 
@@ -239,7 +236,6 @@ fun AddChargerScreen(
                 "Fast Charging",
                 fastPositions,
                 { fastPositions = it; chargerViewModel.updateFastPositions(it) },
-                ChargingSpeed.FAST,
                 chargerCreationState.fastConnectorType,
                 chargerCreationState.fastPrice,
                 { chargerViewModel.updateFastConnectorType(it) },
@@ -252,7 +248,6 @@ fun AddChargerScreen(
                 "Medium Charging",
                 mediumPositions,
                 { mediumPositions = it; chargerViewModel.updateMediumPositions(it) },
-                ChargingSpeed.MEDIUM,
                 chargerCreationState.mediumConnectorType,
                 chargerCreationState.mediumPrice,
                 { chargerViewModel.updateMediumConnectorType(it) },
@@ -265,7 +260,6 @@ fun AddChargerScreen(
                 "Slow Charging",
                 slowPositions,
                 { slowPositions = it; chargerViewModel.updateSlowPositions(it) },
-                ChargingSpeed.SLOW,
                 chargerCreationState.slowConnectorType,
                 chargerCreationState.slowPrice,
                 { chargerViewModel.updateSlowConnectorType(it) },
@@ -286,7 +280,6 @@ fun AddChargerScreen(
 
             Spacer(Modifier.height(12.dp))
 
-// Payment system options with checkboxes and logos
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -298,7 +291,6 @@ fun AddChargerScreen(
                     .padding(16.dp)
             ) {
                 availablePaymentSystems.forEach { paymentSystem ->
-                    // Check directly against ViewModel state
                     val isSelected = chargerCreationState.paymentSystems.any { it.id == paymentSystem.id }
 
                     Row(
@@ -306,7 +298,6 @@ fun AddChargerScreen(
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
                             .clickable {
-                                // Toggle directly in ViewModel
                                 chargerViewModel.togglePaymentSystem(paymentSystem, !isSelected)
                             },
                         verticalAlignment = Alignment.CenterVertically
@@ -314,24 +305,11 @@ fun AddChargerScreen(
                         Checkbox(
                             checked = isSelected,
                             onCheckedChange = { checked ->
-                                // Toggle directly in ViewModel
                                 chargerViewModel.togglePaymentSystem(paymentSystem, checked)
                             }
                         )
 
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        // Payment system logo
-                        paymentSystem.iconResId?.let { resId ->
-                            Icon(
-                                painter = painterResource(id = resId),
-                                contentDescription = paymentSystem.name,
-                                modifier = Modifier.size(32.dp),
-                                tint = Color.Unspecified // Use original colors
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(24.dp))
 
                         Text(
                             text = paymentSystem.name,
@@ -350,7 +328,7 @@ fun AddChargerScreen(
                         chargerCreationState.name.isNotBlank() &&
                         chargerCreationState.location != null &&
                         (fastPositions > 0 || mediumPositions > 0 || slowPositions > 0) &&
-                        chargerCreationState.paymentSystems.isNotEmpty()) // Use ViewModel state for validation
+                        chargerCreationState.paymentSystems.isNotEmpty())
             ) {
                 if (chargerCreationState.isSubmitting) {
                     CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
@@ -367,7 +345,7 @@ fun AddChargerScreen(
         var text by remember { mutableStateOf("") }
 
         LaunchedEffect(text) {
-            delay(300) // Debounce de 300ms
+            delay(300)
             if (text.isNotEmpty()) {
                 mapViewModel.getAutocompleteSuggestions(text)
             }
@@ -430,7 +408,6 @@ fun ChargingPositionSelector(
     title: String,
     count: Int,
     onCountChange: (Int) -> Unit,
-    speed: ChargingSpeed,
     connectorType: ConnectorType,
     price: Double,
     onConnectorTypeChange: (ConnectorType) -> Unit,
@@ -485,7 +462,6 @@ fun ChargingPositionSelector(
 
                     Spacer(Modifier.height(12.dp))
 
-                    // Connector Type selector
                     Text("Connector Type", style = MaterialTheme.typography.bodyMedium)
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),

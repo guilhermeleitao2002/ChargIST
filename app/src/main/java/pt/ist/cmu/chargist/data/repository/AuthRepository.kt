@@ -14,16 +14,12 @@ import kotlinx.coroutines.tasks.await
 import pt.ist.cmu.chargist.data.model.User
 import pt.ist.cmu.chargist.util.NetworkResult
 
-/* ───────────────────  PUBLIC CONTRACT  ─────────────────── */
-
 interface AuthRepository {
     suspend fun signUp(username: String, email: String, pass: String): NetworkResult<User>
     suspend fun login(email: String, pass: String): NetworkResult<User>
     suspend fun logout()
     fun currentUser(): Flow<User?>
 }
-
-/* ───────────────────  FIREBASE IMPLEMENTATION  ─────────────────── */
 
 class FirebaseAuthRepository(
     private val context: Context,
@@ -32,8 +28,6 @@ class FirebaseAuthRepository(
 ) : AuthRepository {
 
     private val users = db.collection("users")
-
-    /* ─────────────  LIVE AUTH‑STATE FLOW  ───────────── */
 
     override fun currentUser(): Flow<User?> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { fb ->
@@ -49,23 +43,18 @@ class FirebaseAuthRepository(
         awaitClose { auth.removeAuthStateListener(listener) }
     }
 
-    /* ─────────────  HELPERS  ───────────── */
-
     private fun isPlayServicesAvailable(): Boolean =
         GoogleApiAvailability.getInstance()
             .isGooglePlayServicesAvailable(context) == CommonStatusCodes.SUCCESS
 
     private fun playServicesError() =
-        NetworkResult.Error("Google Play Services is missing on this device.")
+        NetworkResult.Error("GooglePlayServices is missing on this device.")
 
-    /** Map any Play‑Services security/api failure to a friendly error */
     private fun Throwable.asNetworkError(): NetworkResult.Error = when (this) {
         is ApiException,
         is SecurityException -> playServicesError()
         else                 -> NetworkResult.Error(message ?: "Operation failed")
     }
-
-    /* ─────────────  SIGN‑UP  ───────────── */
 
     override suspend fun signUp(username: String, email: String, pass: String)
             : NetworkResult<User> {
@@ -81,8 +70,6 @@ class FirebaseAuthRepository(
         }.getOrElse { it.asNetworkError() }
     }
 
-    /* ─────────────  LOG‑IN  ───────────── */
-
     override suspend fun login(email: String, pass: String): NetworkResult<User> {
 
         if (!isPlayServicesAvailable()) return playServicesError()
@@ -93,8 +80,6 @@ class FirebaseAuthRepository(
             NetworkResult.Success(doc.toObject<User>()!!)
         }.getOrElse { it.asNetworkError() }
     }
-
-    /* ─────────────  LOG‑OUT  ───────────── */
 
     override suspend fun logout() { auth.signOut() }
 }
