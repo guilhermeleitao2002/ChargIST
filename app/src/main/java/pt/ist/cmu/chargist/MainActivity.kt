@@ -37,7 +37,6 @@ fun ChargISTApp() {
     Scaffold(
         modifier = Modifier.fillMaxSize()
     ) { innerPadding ->
-        // new nav host – no parameters required
-        ChargISTNavigation()          // ← this is the only change
+        ChargISTNavigation()
     }
 }

@@ -96,7 +96,6 @@ fun SearchScreen(
                 value = searchState.query,
                 onValueChange = { viewModel.updateSearchQuery(it) },
                 placeholder = { Text("Search for charging stations") },
-                leadingIcon = { Icon(Icons.Default.Search, null) },
                 trailingIcon = {
                     IconButton(onClick = viewModel::searchChargers) {
                         Icon(Icons.Default.Search, contentDescription = "Search")

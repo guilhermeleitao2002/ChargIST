@@ -100,7 +100,6 @@ class ChargerViewModel(
         val currentDetails = _detail.value.chargerWithDetails ?: return@launch
         val charger = currentDetails.charger
 
-        // Create a new list of favorite users with the update
         val newFavoriteUsers = if (charger.favoriteUsers.contains(userId)) {
             charger.favoriteUsers - userId
         } else {
@@ -384,7 +383,6 @@ class ChargerViewModel(
     }
 
     fun deleteCharger(chargerId: String): Boolean {
-        // Launch in Dispatchers.IO to ensure it doesn't get cancelled with the UI
         viewModelScope.launch(Dispatchers.IO) {
             Log.d("ChargerViewModel", "Starting charger deletion: $chargerId")
             try {

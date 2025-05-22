@@ -1,7 +1,6 @@
 package pt.ist.cmu.chargist.ui.screens
 
 import android.Manifest
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -76,7 +75,7 @@ fun HomeScreen(
 
     // Debounce para evitar requisições excessivas
     LaunchedEffect(searchQuery) {
-        delay(300) // Debounce de 300ms
+        delay(300)
         if (searchQuery.isNotEmpty()) {
             mapViewModel.getAutocompleteSuggestions(searchQuery)
         }

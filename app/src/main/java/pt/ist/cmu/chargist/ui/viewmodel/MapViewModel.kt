@@ -60,24 +60,12 @@ class MapViewModel(
     val focusRequests = _focusRequests.asSharedFlow()
 
     private val placesClient: PlacesClient by lazy {
-        Places.initialize(context, "AIzaSyAU_8dfYDNi471YCS6ja-gZ8Clv4iM7jB4") // Substitua pela sua API Key
+        Places.initialize(context, "AIzaSyAU_8dfYDNi471YCS6ja-gZ8Clv4iM7jB4")
         Places.createClient(context)
     }
 
     init {
         loadChargers()
-    }
-
-    fun loadFavoriteChargers2(userId: String) {
-        viewModelScope.launch {
-            try {
-                chargerRepository.getFavoriteChargersForUser(userId).collectLatest { favoriteChargers ->
-                    _mapState.value = _mapState.value.copy(favoriteChargers = favoriteChargers)
-                }
-            } catch (e: Exception) {
-                _mapState.value = _mapState.value.copy(error = "Error loading favorite chargers2: ${e.message}")
-            }
-        }
     }
 
     internal fun loadChargers() {
@@ -145,16 +133,6 @@ class MapViewModel(
             }
         } catch (e: Exception) {
             continuation.resumeWithException(e)
-        }
-    }
-
-    fun toggleFavorite(charger: Charger, userId: String) {
-        viewModelScope.launch {
-            if (charger.favoriteUsers.contains(userId)) {
-                chargerRepository.removeFavorite(userId, charger.id)
-            } else {
-                chargerRepository.addFavorite(userId, charger.id)
-            }
         }
     }
 
