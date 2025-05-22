@@ -56,16 +56,12 @@ fun ChargerDetailScreen(
     val detailState by chargerViewModel.chargerDetailState.collectAsState()
     val chargerWithDetails = detailState.chargerWithDetails
     val userId = FirebaseAuth.getInstance().currentUser?.uid
-    var nearbyServicesLoaded by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(chargerWithDetails?.charger?.id) {
+    LaunchedEffect(chargerWithDetails?.charger) {
         chargerWithDetails?.charger?.let { charger ->
-            if (!nearbyServicesLoaded) {
-                val location = LatLng(charger.latitude, charger.longitude)
-                chargerViewModel.loadNearbyPlaces(location)
-                nearbyServicesLoaded = true
-            }
+            val location = LatLng(charger.latitude, charger.longitude)
+            chargerViewModel.loadNearbyPlaces(location)
         }
     }
 
@@ -283,21 +279,6 @@ fun ChargerDetailScreen(
             )
         }
     }
-}
-
-@Composable
-fun ConfirmDeleteDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Delete this charger?") },
-        text = { Text("This action cannot be undone.") },
-        confirmButton = {
-            TextButton(onClick = onConfirm) { Text("Delete") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
 }
 
 @Composable
