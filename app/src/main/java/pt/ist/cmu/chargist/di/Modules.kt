@@ -3,7 +3,6 @@ package pt.ist.cmu.chargist.di
 /* Kotlin / Android */
 import android.content.Context
 import android.net.ConnectivityManager
-import androidx.room.Room
 
 /* GooglePlayServices & Firebase */
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -14,8 +13,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 /* Networking */
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 
 /* Koin */
 import org.koin.android.ext.koin.androidContext
