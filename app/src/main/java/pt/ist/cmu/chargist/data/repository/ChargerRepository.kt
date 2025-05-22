@@ -32,7 +32,6 @@ interface ChargerRepository {
     ): NetworkResult<Charger>
 
     // function calls to firebase
-    suspend fun deleteCharger(chargerId: String): NetworkResult<Unit>
     suspend fun getChargingSlotsForCharger(chargerId: String): List<ChargingSlot>
     suspend fun findChargerBySlotId(slotId: String): NetworkResult<Pair<Charger, ChargingSlot>>
 

@@ -356,33 +356,6 @@ class ChargerViewModel(
         }
     }
 
-    fun deleteCharger(chargerId: String): Boolean {
-        viewModelScope.launch(Dispatchers.IO) {
-            Log.d("ChargerViewModel", "Starting charger deletion: $chargerId")
-            try {
-                val result = chargerRepository.deleteCharger(chargerId)
-                when (result) {
-                    is NetworkResult.Success -> {
-                        Log.d("ChargerViewModel", "Successfully deleted charger: $chargerId")
-                        _deletionEvents.emit(NetworkResult.Success(chargerId))
-                        loadAllChargers()
-                    }
-                    is NetworkResult.Error -> {
-                        Log.e("ChargerViewModel", "Failed to delete charger: ${result.message}")
-                        _deletionEvents.emit(NetworkResult.Error(result.message))
-                    }
-                    else -> {}
-                }
-            } catch (e: Exception) {
-                Log.e("ChargerViewModel", "Exception during deletion: ${e.message}", e)
-                viewModelScope.launch {
-                    _deletionEvents.emit(NetworkResult.Error(e.message ?: "Unknown error"))
-                }
-            }
-        }
-        return true
-    }
-
     fun updateChargingSlot(
         slotId: String,
         speed: ChargingSpeed,

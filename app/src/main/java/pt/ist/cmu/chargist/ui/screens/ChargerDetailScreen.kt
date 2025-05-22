@@ -56,24 +56,11 @@ fun ChargerDetailScreen(
     val detailState by chargerViewModel.chargerDetailState.collectAsState()
     val chargerWithDetails = detailState.chargerWithDetails
     val userId = FirebaseAuth.getInstance().currentUser?.uid
-    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(chargerWithDetails?.charger) {
         chargerWithDetails?.charger?.let { charger ->
             val location = LatLng(charger.latitude, charger.longitude)
             chargerViewModel.loadNearbyPlaces(location)
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        chargerViewModel.deletionEvents.collect { result ->
-            when (result) {
-                is NetworkResult.Success ->
-                    Toast.makeText(context, "Charger deleted successfully", Toast.LENGTH_SHORT).show()
-                is NetworkResult.Error ->
-                    Toast.makeText(context, "Error: ${result.message}", Toast.LENGTH_LONG).show()
-                else -> {}
-            }
         }
     }
 
@@ -93,13 +80,6 @@ fun ChargerDetailScreen(
                             Icon(
                                 if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                 contentDescription = if (isFavorite) "Remove from favourites" else "Add to favourites"
-                            )
-                        }
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(
-                                Icons.Filled.Delete,
-                                contentDescription = "Delete charger",
-                                tint = MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -250,31 +230,6 @@ fun ChargerDetailScreen(
                     item { Spacer(Modifier.height(80.dp)) }
                 }
             }
-        }
-
-        if (showDeleteDialog) {
-            AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                title = { Text("Delete this charger?") },
-                text = { Text("This action cannot be undone.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val success = chargerViewModel.deleteCharger(chargerId)
-                            showDeleteDialog = false
-                            if (success) {
-                                Toast.makeText(context, "Charger deleted!", Toast.LENGTH_SHORT).show()
-                                onBackClick()
-                            }
-                        }
-                    ) { Text("Delete") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
         }
     }
 }
