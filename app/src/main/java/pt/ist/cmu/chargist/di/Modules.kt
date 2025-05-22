@@ -23,7 +23,6 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 /* Project – data layer */
-import pt.ist.cmu.chargist.data.ChargISTDatabase
 import pt.ist.cmu.chargist.data.repository.AuthRepository
 import pt.ist.cmu.chargist.data.repository.ChargerRepository
 import pt.ist.cmu.chargist.data.repository.FirestoreChargerRepository
@@ -47,15 +46,6 @@ val appModule = module {
     single     { androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager }
 }
 
-val dataModule = module {
-    single {
-        Room.databaseBuilder(
-            androidContext(),
-            ChargISTDatabase::class.java,
-            "chargist-db"
-        ).build()
-    }
-}
 
 /* ───────────────────────────── NETWORK (Retrofit) ─────────────────────────── */
 val networkModule = module {

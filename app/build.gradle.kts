@@ -62,10 +62,11 @@ dependencies {
     // Firebase
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-storage-ktx:20.3.0")
-    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1") // to use Task.await()
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+
 
     // Core
     implementation(libs.androidx.core.ktx)

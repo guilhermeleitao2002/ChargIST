@@ -18,9 +18,11 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.AutocompletePrediction
 import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.model.PlaceTypes
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -199,8 +201,9 @@ class MapViewModel(
                 val request = FindAutocompletePredictionsRequest.builder()
                     .setQuery(query)
                     .setCountries("PT")
-                    .setTypeFilter(com.google.android.libraries.places.api.model.TypeFilter.ADDRESS)
+                    .setTypesFilter(listOf(PlaceTypes.ADDRESS))
                     .build()
+
                 placesClient.findAutocompletePredictions(request).addOnSuccessListener { response ->
                     Log.d("MapViewModel", "Suggestions received: ${response.autocompletePredictions.size}")
                     _mapState.update {
@@ -220,6 +223,7 @@ class MapViewModel(
         _focusRequests.tryEmit(target)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun markFocusConsumed() {
         _focusRequests.resetReplayCache()
     }

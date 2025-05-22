@@ -5,7 +5,6 @@ import android.util.Log
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import pt.ist.cmu.chargist.di.appModule
-import pt.ist.cmu.chargist.di.dataModule
 import pt.ist.cmu.chargist.di.firebaseModule
 import pt.ist.cmu.chargist.di.networkModule
 import pt.ist.cmu.chargist.di.viewModelModule
@@ -24,7 +23,6 @@ class ChargISTApplication : Application() {
             modules(
                 listOf(
                     appModule,
-                    dataModule,
                     networkModule,
                     viewModelModule,
                     firebaseModule
