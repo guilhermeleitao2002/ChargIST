@@ -1,6 +1,8 @@
 package pt.ist.cmu.chargist.ui.screens
 
-import android.widget.Toast
+import android.content.Context
+import android.content.Intent
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -37,7 +39,7 @@ import pt.ist.cmu.chargist.data.model.NearbyService
 import pt.ist.cmu.chargist.data.repository.ImageCodec
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
-import pt.ist.cmu.chargist.util.NetworkResult
+import pt.ist.cmu.chargist.data.model.ChargerWithDetails
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +76,16 @@ fun ChargerDetailScreen(
                     }
                 },
                 actions = {
+                    // Share button
+                    IconButton(onClick = {
+                        shareChargerInfo(context, chargerWithDetails)
+                    }) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = "Share charging station"
+                        )
+                    }
+
                     if (userId != null && chargerWithDetails != null) {
                         val isFavorite = chargerWithDetails.charger.favoriteUsers.contains(userId)
                         IconButton(onClick = { chargerViewModel.toggleFavorite(userId) }) {
@@ -459,4 +471,33 @@ fun ChargingSlotItem(slot: ChargingSlot, onClick: () -> Unit) {
             )
         }
     }
+}
+
+private fun shareChargerInfo(context: Context, chargerWithDetails: ChargerWithDetails?) {
+    val charger = chargerWithDetails?.charger
+    val availableSlots = chargerWithDetails?.chargingSlots?.count { it.available }
+    val totalSlots = chargerWithDetails?.chargingSlots?.size
+
+    val shareText = buildString {
+        appendLine("🔌 ${charger?.name}")
+        appendLine("📍 Location: ${charger?.latitude}, ${charger?.longitude}")
+        appendLine("⚡ Available slots: $availableSlots/$totalSlots")
+
+        if (chargerWithDetails?.paymentSystems?.isNotEmpty() == true) {
+            appendLine("💳 Payment: ${chargerWithDetails.paymentSystems.joinToString(", ") { it.name }}")
+        }
+
+        appendLine("\nShared via ChargIST app")
+    }
+
+    // Show app chooser
+    val shareIntent = Intent().apply {
+        action = Intent.ACTION_SEND
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, shareText)
+        putExtra(Intent.EXTRA_SUBJECT, "Check out this charging station!")
+    }
+
+    val chooserIntent = Intent.createChooser(shareIntent, "Share charging station via")
+    context.startActivity(chooserIntent)
 }
