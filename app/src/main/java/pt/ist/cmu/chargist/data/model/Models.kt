@@ -3,10 +3,8 @@ package pt.ist.cmu.chargist.data.model
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
-import androidx.room.TypeConverters
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.firestore.IgnoreExtraProperties
-import pt.ist.cmu.chargist.util.Converters
 
 enum class ChargingSpeed { FAST, MEDIUM, SLOW }
 enum class ConnectorType  { CCS2, TYPE2 }
@@ -18,7 +16,6 @@ data class PaymentSystem(
 )
 
 @IgnoreExtraProperties
-@TypeConverters(Converters::class)
 @Entity(tableName = "chargers")
 data class Charger(
     @PrimaryKey val id: String = "",
@@ -35,7 +32,6 @@ data class Charger(
     fun getLatLng(): LatLng = LatLng(latitude, longitude)
 }
 
-@TypeConverters(Converters::class)
 @Entity(
     tableName = "charging_slots",
     foreignKeys = [ForeignKey(
