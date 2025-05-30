@@ -62,7 +62,7 @@ class Converters {
 
     @TypeConverter
     fun toLong(value: String?): Long? {
-        return value?.toLongOrNull() ?: null
+        return value?.toLongOrNull()
     }
 
     @TypeConverter
