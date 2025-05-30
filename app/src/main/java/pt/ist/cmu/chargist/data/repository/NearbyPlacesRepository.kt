@@ -30,7 +30,7 @@ data class NearbyPlacesResponse(
 )
 
 data class PlaceResult(
-    val place_id: String,
+    val placeId: String,
     val name: String,
     val types: List<String>,
     val vicinity: String,
@@ -80,7 +80,7 @@ class NearbyPlacesRepository {
                             val distance = calculateDistance(location, placeLocation).toInt()
 
                             NearbyPlace(
-                                id = result.place_id,
+                                id = result.placeId,
                                 name = result.name,
                                 placeType = if (result.types.isNotEmpty()) result.types[0] else type,
                                 distance = distance,

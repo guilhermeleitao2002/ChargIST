@@ -1,5 +1,6 @@
 package pt.ist.cmu.chargist
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 fun ChargISTApp() {
     Scaffold(
         modifier = Modifier.fillMaxSize()

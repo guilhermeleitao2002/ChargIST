@@ -2,17 +2,13 @@ package pt.ist.cmu.chargist.ui.viewmodel
 
 import android.content.Context
 import android.location.Location
-import android.Manifest
 import android.annotation.SuppressLint
-import android.content.pm.PackageManager
 import android.util.Log
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.AutocompletePrediction
@@ -35,7 +31,6 @@ import pt.ist.cmu.chargist.data.model.Charger
 import pt.ist.cmu.chargist.data.repository.ChargerRepository
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 data class MapState(
     val chargers: List<Charger> = emptyList(),
@@ -48,6 +43,7 @@ data class MapState(
     val autocompleteSuggestions: List<AutocompletePrediction> = emptyList()
 )
 
+@SuppressLint("StaticFieldLeak")
 class MapViewModel(
     private val chargerRepository: ChargerRepository,
     private val fusedLocationClient: FusedLocationProviderClient,

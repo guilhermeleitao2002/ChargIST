@@ -22,7 +22,6 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
-import pt.ist.cmu.chargist.data.model.Charger
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.UserViewModel
 import kotlinx.coroutines.delay
@@ -120,7 +119,7 @@ fun HomeScreen(
                 )
             ) {
                 mapState.chargers.forEach { charger ->
-                    val fav = userState.user?.id?.let { charger.favoriteUsers.contains(it) } ?: false
+                    val fav = userState.user?.id?.let { charger.favoriteUsers.contains(it) } == true
                     Marker(
                         state = MarkerState(charger.getLatLng()),
                         title = charger.name,

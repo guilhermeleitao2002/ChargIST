@@ -1,5 +1,6 @@
 package pt.ist.cmu.chargist.ui.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,7 @@ import pt.ist.cmu.chargist.data.repository.ImageCodec
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import androidx.compose.material3.*
 
+@SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -268,7 +270,7 @@ fun SearchScreen(
                 }
 
                 // Availability Filter
-                var showAvailableOnly by remember { mutableStateOf(searchState.isAvailable ?: false) }
+                var showAvailableOnly by remember { mutableStateOf(searchState.isAvailable == true) }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -340,7 +342,7 @@ fun SearchScreen(
                 }
 
                 // Price Filter
-                var maxPrice by remember { mutableStateOf(searchState.maxPrice ?: 1.0) }
+                var maxPrice by remember { mutableDoubleStateOf(searchState.maxPrice ?: 1.0) }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()

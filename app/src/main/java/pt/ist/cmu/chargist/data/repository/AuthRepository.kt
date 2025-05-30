@@ -24,7 +24,7 @@ interface AuthRepository {
 class FirebaseAuthRepository(
     private val context: Context,
     private val auth: FirebaseAuth,
-    private val db: FirebaseFirestore
+    db: FirebaseFirestore
 ) : AuthRepository {
 
     private val users = db.collection("users")
