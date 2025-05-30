@@ -14,7 +14,6 @@ import pt.ist.cmu.chargist.util.NetworkResult
 import java.util.UUID
 import pt.ist.cmu.chargist.data.repository.AuthRepository
 import pt.ist.cmu.chargist.data.repository.NearbyPlacesRepository
-import kotlinx.coroutines.Dispatchers
 
 data class ChargerDetailState(
     val chargerWithDetails: ChargerWithDetails? = null,
@@ -71,12 +70,7 @@ class ChargerViewModel(
     private val _search = MutableStateFlow(SearchState())
     val searchState: StateFlow<SearchState> = _search.asStateFlow()
 
-    private val _allChargers = MutableStateFlow<List<Charger>>(emptyList())
-
     private val nearbyPlacesRepository = NearbyPlacesRepository()
-
-    private val _deletionEvents = MutableSharedFlow<NetworkResult<String>>()
-    val deletionEvents = _deletionEvents.asSharedFlow()
 
     /* ---------- details ---------- */
 
@@ -258,18 +252,6 @@ class ChargerViewModel(
         }
     }
 
-    fun loadAllChargers() = viewModelScope.launch {
-        when (val result = chargerRepository.getAllChargersSync()) {
-            is NetworkResult.Success -> {
-                _detail.update { it.copy(allChargers = result.data) }
-            }
-            is NetworkResult.Error -> {
-                _detail.update { it.copy(error = result.message) }
-            }
-            else -> {}
-        }
-    }
-
     /* ---------- slots shortcuts ---------- */
     fun updateFastPositions(count: Int) { _create.update { it.copy(fastPositions = count) } }
     fun updateMediumPositions(count: Int) { _create.update { it.copy(mediumPositions = count) } }
@@ -372,4 +354,23 @@ class ChargerViewModel(
         }
     }
 
+    /* ---------- ratings ---------- */
+    fun submitRating(chargerId: String, stars: Int) = viewModelScope.launch {
+        val user = authRepository.currentUser().first()
+        if (user == null) {
+            _detail.update { it.copy(error = "You need to Sign in to rate") }
+            return@launch
+        }
+
+        when (val result = chargerRepository.addRating(chargerId, user.id, stars)) {
+            is NetworkResult.Success -> {
+                // Reload charger details to get updated ratings
+                loadChargerDetails(chargerId)
+            }
+            is NetworkResult.Error -> {
+                _detail.update { it.copy(error = result.message) }
+            }
+            else -> {}
+        }
+    }
 }

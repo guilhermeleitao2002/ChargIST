@@ -69,5 +69,9 @@ interface ChargerRepository {
         paymentSystems: List<PaymentSystem>? = emptyList(),
         userLocation: LatLng? = null
     ): NetworkResult<List<Charger>>
+
+    suspend fun addRating(chargerId: String, userId: String, stars: Int): NetworkResult<Rating>
+    suspend fun getUserRating(chargerId: String, userId: String): NetworkResult<Rating?>
+    suspend fun getRatingStats(chargerId: String): NetworkResult<RatingStats>
 }
 

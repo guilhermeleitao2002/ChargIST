@@ -1,5 +1,6 @@
 package pt.ist.cmu.chargist.ui.screens
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import androidx.compose.material.icons.filled.Share
@@ -7,6 +8,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -24,6 +26,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -40,6 +43,8 @@ import pt.ist.cmu.chargist.data.repository.ImageCodec
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 import pt.ist.cmu.chargist.data.model.ChargerWithDetails
+import pt.ist.cmu.chargist.data.model.Rating
+import pt.ist.cmu.chargist.data.model.RatingStats
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,6 +143,21 @@ fun ChargerDetailScreen(
                 ) {
                     item {
                         HeaderSection(chargerWithDetails)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                        )
+                    }
+
+                    item {
+                        RatingSection(
+                            ratingStats = chargerWithDetails.ratingStats,
+                            userRating = chargerWithDetails.userRating,
+                            onRatingSubmit = { stars ->
+                                chargerViewModel.submitRating(chargerId, stars)
+                            }
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
@@ -247,7 +267,7 @@ fun ChargerDetailScreen(
 }
 
 @Composable
-private fun HeaderSection(chargerWithDetails: pt.ist.cmu.chargist.data.model.ChargerWithDetails) {
+private fun HeaderSection(chargerWithDetails: ChargerWithDetails) {
     val photoData = chargerWithDetails.charger.imageData
     if (photoData != null) {
         AsyncImage(
@@ -500,4 +520,175 @@ private fun shareChargerInfo(context: Context, chargerWithDetails: ChargerWithDe
 
     val chooserIntent = Intent.createChooser(shareIntent, "Share charging station via")
     context.startActivity(chooserIntent)
+}
+
+@SuppressLint("DefaultLocale")
+@Composable
+private fun RatingSection(
+    ratingStats: RatingStats,
+    userRating: Rating?,
+    onRatingSubmit: (Int) -> Unit
+) {
+    var selectedRating by remember { mutableIntStateOf(userRating?.stars ?: 0) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Ratings & Reviews",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (ratingStats.totalRatings > 0) {
+            // Average Rating Display
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = String.format("%.1f", ratingStats.averageRating),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                StarRating(
+                    rating = ratingStats.averageRating.toFloat(),
+                    size = 24.dp,
+                    readOnly = true
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "(${ratingStats.totalRatings} reviews)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Rating Histogram
+            RatingHistogram(ratingStats.histogram, ratingStats.totalRatings)
+
+            Spacer(modifier = Modifier.height(16.dp))
+        } else {
+            Text(
+                text = "No ratings yet. Be the first to rate!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // User Rating Input
+        Text(
+            text = if (userRating != null) "Your Rating" else "Rate this station",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StarRating(
+                rating = selectedRating.toFloat(),
+                onRatingChanged = { newRating ->
+                    selectedRating = newRating.toInt()
+                },
+                size = 32.dp
+            )
+
+            if (selectedRating > 0 && selectedRating != (userRating?.stars ?: 0)) {
+                Spacer(modifier = Modifier.width(16.dp))
+                Button(
+                    onClick = { onRatingSubmit(selectedRating) }
+                ) {
+                    Text(if (userRating != null) "Update" else "Submit")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RatingHistogram(histogram: Map<Int, Int>, totalRatings: Int) {
+    Column {
+        for (star in 5 downTo 1) {
+            val count = histogram[star] ?: 0
+            val percentage = if (totalRatings > 0) count.toFloat() / totalRatings else 0f
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "$star",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(16.dp)
+                )
+
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                LinearProgressIndicator(
+                    progress = { percentage },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(8.dp),
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(24.dp)
+                )
+            }
+
+            if (star > 1) Spacer(modifier = Modifier.height(4.dp))
+        }
+    }
+}
+
+@Composable
+private fun StarRating(
+    rating: Float,
+    onRatingChanged: ((Float) -> Unit)? = null,
+    size: Dp = 24.dp,
+    readOnly: Boolean = false
+) {
+    Row {
+        for (i in 1..5) {
+            val isSelected = i <= rating
+            Icon(
+                imageVector = if (isSelected) Icons.Default.Star else Icons.Default.StarBorder,
+                contentDescription = "Star $i",
+                tint = if (isSelected) Color(0xFFFFD700) else MaterialTheme.colorScheme.outline,
+                modifier = Modifier
+                    .size(size)
+                    .let { modifier ->
+                        if (!readOnly && onRatingChanged != null) {
+                            modifier.clickable { onRatingChanged(i.toFloat()) }
+                        } else modifier
+                    }
+            )
+        }
+    }
 }

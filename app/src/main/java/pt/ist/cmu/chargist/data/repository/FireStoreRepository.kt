@@ -1,13 +1,10 @@
 package pt.ist.cmu.chargist.data.repository
 
-import android.util.Log
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
-import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -19,7 +16,6 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
-import com.google.firebase.firestore.WriteBatch
 import com.google.firebase.firestore.snapshots
 
 
@@ -33,6 +29,8 @@ class FirestoreChargerRepository(
     private fun chargerDoc(id: String) = chargersCol.document(id)
     private fun slotsCol(chargerId: String) =
         chargerDoc(chargerId).collection("chargingSlots")
+    private fun ratingsCol(chargerId: String) =
+        chargerDoc(chargerId).collection("ratings")
 
     /* ---------- live lists ---------- */
 
@@ -225,6 +223,50 @@ class FirestoreChargerRepository(
         distance: Int
     ) = TODO()
 
+    /* ---------- ratings ---------- */
+
+    override suspend fun addRating(chargerId: String, userId: String, stars: Int): NetworkResult<Rating> = runCatching {
+        val now = System.currentTimeMillis()
+        val ratingId = "${chargerId}_${userId}"
+
+        val existingRating = ratingsCol(chargerId).document(ratingId).get().await()
+
+        val rating = Rating(
+            id = ratingId,
+            chargerId = chargerId,
+            userId = userId,
+            stars = stars,
+            createdAt = existingRating.toObject(Rating::class.java)?.createdAt ?: now,
+            updatedAt = now
+        )
+
+        ratingsCol(chargerId).document(ratingId).set(rating).await()
+        NetworkResult.Success(rating)
+    }.getOrElse { NetworkResult.Error(it.message ?: "Failed to add rating") }
+
+    override suspend fun getUserRating(chargerId: String, userId: String): NetworkResult<Rating?> = runCatching {
+        val ratingId = "${chargerId}_${userId}"
+        val doc = ratingsCol(chargerId).document(ratingId).get().await()
+        NetworkResult.Success(doc.toObject(Rating::class.java))
+    }.getOrElse { NetworkResult.Error(it.message ?: "Failed to get user rating") }
+
+    override suspend fun getRatingStats(chargerId: String): NetworkResult<RatingStats> = runCatching {
+        val ratings = ratingsCol(chargerId).get().await().toObjects(Rating::class.java)
+
+        if (ratings.isEmpty()) {
+            return NetworkResult.Success(RatingStats())
+        }
+
+        val histogram = ratings.groupingBy { it.stars }.eachCount()
+        val average = ratings.map { it.stars }.average()
+
+        NetworkResult.Success(RatingStats(
+            averageRating = average,
+            totalRatings = ratings.size,
+            histogram = histogram
+        ))
+    }.getOrElse { NetworkResult.Error(it.message ?: "Failed to get rating stats") }
+
     /* ---------- details wrapper ---------- */
 
     override fun getChargerWithDetails(
@@ -242,12 +284,27 @@ class FirestoreChargerRepository(
                 val paymentSystems = chargerDoc(chargerId).collection("paymentSystems")
                     .get().await().toObjects(PaymentSystem::class.java)
 
+                // Get rating stats
+                val ratingStatsResult = getRatingStats(chargerId)
+                val ratingStats = if (ratingStatsResult is NetworkResult.Success) {
+                    ratingStatsResult.data
+                } else RatingStats()
+
+                // Get user's rating if logged in
+                val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                val userRating = if (userId != null) {
+                    val userRatingResult = getUserRating(chargerId, userId)
+                    if (userRatingResult is NetworkResult.Success) userRatingResult.data else null
+                } else null
+
                 emit(NetworkResult.Success(
                     ChargerWithDetails(
                         charger = charger,
                         chargingSlots = slots,
                         nearbyServices = emptyList(),
-                        paymentSystems = paymentSystems
+                        paymentSystems = paymentSystems,
+                        ratingStats = ratingStats,
+                        userRating = userRating
                     )
                 ))
             }

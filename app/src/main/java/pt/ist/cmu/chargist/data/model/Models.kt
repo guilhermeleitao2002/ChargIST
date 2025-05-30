@@ -74,9 +74,36 @@ data class NearbyService(
     val distance: Int = 0
 )
 
+@IgnoreExtraProperties
+@Entity(
+    tableName = "ratings",
+    foreignKeys = [ForeignKey(
+        entity = Charger::class,
+        parentColumns = ["id"],
+        childColumns = ["chargerId"],
+        onDelete = ForeignKey.CASCADE
+    )]
+)
+data class Rating(
+    @PrimaryKey val id: String = "",
+    val chargerId: String = "",
+    val userId: String = "",
+    val stars: Int = 0,
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
+)
+
+data class RatingStats(
+    val averageRating: Double = 0.0,
+    val totalRatings: Int = 0,
+    val histogram: Map<Int, Int> = emptyMap()
+)
+
 data class ChargerWithDetails(
-    val charger: Charger              = Charger(),
+    val charger: Charger = Charger(),
     val chargingSlots: List<ChargingSlot> = emptyList(),
     val nearbyServices: List<NearbyService> = emptyList(),
-    val paymentSystems: List<PaymentSystem> = emptyList()
+    val paymentSystems: List<PaymentSystem> = emptyList(),
+    val ratingStats: RatingStats = RatingStats(),
+    val userRating: Rating? = null
 )
