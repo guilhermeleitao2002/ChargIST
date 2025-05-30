@@ -29,6 +29,7 @@ data class NearbyPlacesResponse(
     val status: String
 )
 
+@Suppress("PropertyName")
 data class PlaceResult(
     val place_id: String,
     val name: String,

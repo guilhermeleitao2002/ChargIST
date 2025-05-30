@@ -6,7 +6,6 @@ import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ktx.toObject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -35,7 +34,7 @@ class FirebaseAuthRepository(
             if (u == null) trySend(null) else {
                 users.document(u.uid)
                     .addSnapshotListener { snap, _ ->
-                        trySend(snap?.toObject<User>())
+                        trySend(snap?.toObject(User::class.java))
                     }
             }
         }
@@ -77,7 +76,7 @@ class FirebaseAuthRepository(
         return runCatching {
             auth.signInWithEmailAndPassword(email, pass).await()
             val doc = users.document(auth.currentUser!!.uid).get().await()
-            NetworkResult.Success(doc.toObject<User>()!!)
+            NetworkResult.Success(doc.toObject(User::class.java)!!)
         }.getOrElse { it.asNetworkError() }
     }
 

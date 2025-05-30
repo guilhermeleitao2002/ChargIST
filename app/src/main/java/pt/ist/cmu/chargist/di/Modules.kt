@@ -50,6 +50,7 @@ val firebaseModule = module {
 
     single { FirebaseAuth.getInstance() }
 
+    @Suppress("DEPRECATION")
     single {
         FirebaseFirestore.getInstance().apply {
             val settings = FirebaseFirestoreSettings.Builder()
