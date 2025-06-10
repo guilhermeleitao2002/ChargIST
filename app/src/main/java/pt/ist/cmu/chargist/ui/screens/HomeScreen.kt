@@ -62,8 +62,8 @@ fun HomeScreen(
         mapState.currentLocation?.let { location ->
             if (!mapState.hasAnimatedToUserLocation) {
                 cameraPosState.animate(
-                    CameraUpdateFactory.newLatLngZoom(location, 15f),
-                    durationMs = 1
+                    CameraUpdateFactory.newLatLngZoom(defaultLocation, 15f), // CHANGEME to "location"
+                    durationMs = 3000
                 )
                 mapViewModel.markUserLocationAnimated()
             }
