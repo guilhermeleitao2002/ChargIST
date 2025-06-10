@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.AutocompletePrediction
@@ -17,11 +18,9 @@ import com.google.android.libraries.places.api.model.PlaceTypes
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.PlacesClient
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
@@ -40,7 +39,8 @@ data class MapState(
     val hasLocationPermission: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val autocompleteSuggestions: List<AutocompletePrediction> = emptyList()
+    val autocompleteSuggestions: List<AutocompletePrediction> = emptyList(),
+    val hasAnimatedToUserLocation: Boolean = false
 )
 
 @SuppressLint("StaticFieldLeak")
@@ -53,33 +53,62 @@ class MapViewModel(
     val mapState: StateFlow<MapState> = _mapState.asStateFlow()
 
     private val _focusRequests = MutableSharedFlow<LatLng>(replay = 1, extraBufferCapacity = 1)
-    val focusRequests = _focusRequests.asSharedFlow()
 
     private val placesClient: PlacesClient by lazy {
         Places.initialize(context, "AIzaSyAU_8dfYDNi471YCS6ja-gZ8Clv4iM7jB4")
         Places.createClient(context)
     }
 
-    init {
-        loadChargers()
+    fun markUserLocationAnimated() {
+        _mapState.update { it.copy(hasAnimatedToUserLocation = true) }
     }
 
-    internal fun loadChargers() {
+    fun loadChargersNearLocation(center: LatLng, radiusMeters: Double = 5000.0) {
         viewModelScope.launch {
             try {
-                chargerRepository.getAllChargers().collectLatest { chargers ->
+                val bounds = createBoundsFromCenter(center, radiusMeters)
+                chargerRepository.getChargersInBounds(bounds).collectLatest { chargers ->
                     _mapState.value = _mapState.value.copy(chargers = chargers, isLoading = false)
                 }
             } catch (e: Exception) {
-                _mapState.value = _mapState.value.copy(error = "Error loading chargers aa: ${e.message}", isLoading = false)
+                _mapState.value = _mapState.value.copy(
+                    error = "Error loading chargers: ${e.message}",
+                    isLoading = false
+                )
             }
         }
+    }
+
+    private fun createBoundsFromCenter(center: LatLng, radiusMeters: Double): LatLngBounds {
+        val earthRadius = 6371000.0 // Earth radius in meters
+        val latRadian = Math.toRadians(center.latitude)
+
+        val deltaLat = radiusMeters / earthRadius
+        val deltaLng = radiusMeters / (earthRadius * kotlin.math.cos(latRadian))
+
+        val deltaLatDegrees = Math.toDegrees(deltaLat)
+        val deltaLngDegrees = Math.toDegrees(deltaLng)
+
+        return LatLngBounds(
+            LatLng(center.latitude - deltaLatDegrees, center.longitude - deltaLngDegrees),
+            LatLng(center.latitude + deltaLatDegrees, center.longitude + deltaLngDegrees)
+        )
     }
 
     fun onLocationPermissionGranted() {
         if (!_mapState.value.hasLocationPermission) {
             _mapState.value = _mapState.value.copy(hasLocationPermission = true)
-            viewModelScope.launch { getCurrentLocation() }
+            viewModelScope.launch {
+                try {
+                    val location = getCurrentLocation()
+                    val currentLatLng = LatLng(location.latitude, location.longitude)
+                    _mapState.value = _mapState.value.copy(currentLocation = currentLatLng)
+                    // Load chargers near current location
+                    loadChargersNearLocation(currentLatLng)
+                } catch (e: Exception) {
+                    _mapState.value = _mapState.value.copy(error = "Failed to get location: ${e.message}")
+                }
+            }
         }
     }
 
@@ -148,10 +177,5 @@ class MapViewModel(
 
     fun focusOn(target: LatLng) {
         _focusRequests.tryEmit(target)
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun markFocusConsumed() {
-        _focusRequests.resetReplayCache()
     }
 }

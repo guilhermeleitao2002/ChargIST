@@ -45,28 +45,40 @@ fun HomeScreen(
     ) { granted ->
         if (granted) mapViewModel.onLocationPermissionGranted()
     }
+
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
+    val defaultLocation = LatLng(38.7369, -9.1366) // IST
     val cameraPosState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
-            mapState.currentLocation ?: LatLng(38.7369, -9.1366),
-            15f
+            mapState.currentLocation ?: defaultLocation,
+            if (mapState.currentLocation != null) 15f else 10f
         )
     }
 
-    LaunchedEffect(Unit) {
-        mapViewModel.focusRequests.collect { target ->
-            cameraPosState.animate(
-                update = CameraUpdateFactory.newLatLngZoom(target, 17f),
-                durationMs = 750
-            )
-            mapViewModel.markFocusConsumed()
-            mapViewModel.loadChargers()
+    LaunchedEffect(mapState.currentLocation, mapState.hasAnimatedToUserLocation) {
+        mapState.currentLocation?.let { location ->
+            if (!mapState.hasAnimatedToUserLocation) {
+                cameraPosState.animate(
+                    CameraUpdateFactory.newLatLngZoom(location, 15f),
+                    durationMs = 1
+                )
+                mapViewModel.markUserLocationAnimated()
+            }
         }
     }
 
+    // Listen to camera position changes and load nearby chargers
+    LaunchedEffect(cameraPosState.isMoving) {
+        snapshotFlow { cameraPosState.position }
+            .collect { position ->
+                if (!cameraPosState.isMoving) {
+                    mapViewModel.loadChargersNearLocation(position.target)
+                }
+            }
+    }
 
     var showAddressDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
