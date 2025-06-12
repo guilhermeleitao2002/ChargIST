@@ -19,7 +19,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -29,6 +28,7 @@ import pt.ist.cmu.chargist.data.model.PaymentSystem
 import pt.ist.cmu.chargist.data.repository.ImageCodec
 import pt.ist.cmu.chargist.ui.viewmodel.ChargerViewModel
 import androidx.compose.material3.*
+import pt.ist.cmu.chargist.ui.viewmodel.MapViewModel
 
 @SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,12 +37,13 @@ fun SearchScreen(
     onBackClick: () -> Unit,
     onChargerClick: (String) -> Unit,
     viewModel: ChargerViewModel = koinViewModel(),
-    userLocation: LatLng? = null
+    mapViewModel: MapViewModel = koinViewModel()
 ) {
     val searchState by viewModel.searchState.collectAsState()
     var showFilters by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val bottomSheetState = rememberModalBottomSheetState()
+    val mapState by mapViewModel.mapState.collectAsState()
 
     val availablePaymentSystems = listOf(
         PaymentSystem(id = "visa", name = "VISA"),
@@ -53,8 +54,8 @@ fun SearchScreen(
 
     var selectedPaymentSystems by remember { mutableStateOf(searchState.paymentSystems ?: emptyList()) }
 
-    LaunchedEffect(userLocation) {
-        viewModel.updateUserLocation(userLocation)
+    LaunchedEffect(mapState.currentLocation) {
+        viewModel.updateUserLocation(mapState.currentLocation)
     }
 
     LaunchedEffect(searchState.query) {

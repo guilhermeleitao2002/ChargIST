@@ -62,7 +62,8 @@ fun HomeScreen(
         mapState.currentLocation?.let { location ->
             if (!mapState.hasAnimatedToUserLocation) {
                 cameraPosState.animate(
-                    CameraUpdateFactory.newLatLngZoom(defaultLocation, 15f), // CHANGEME to "location"
+                    CameraUpdateFactory.newLatLngZoom(location, 15f),
+
                     durationMs = 3000
                 )
                 mapViewModel.markUserLocationAnimated()
@@ -88,6 +89,15 @@ fun HomeScreen(
         delay(300)
         if (searchQuery.isNotEmpty()) {
             mapViewModel.getAutocompleteSuggestions(searchQuery)
+        }
+    }
+
+    LaunchedEffect(mapState.searchedLocation) {
+        mapState.searchedLocation?.let { location ->
+            cameraPosState.animate(
+                CameraUpdateFactory.newLatLngZoom(location, 15f),
+                durationMs = 1
+            )
         }
     }
 

@@ -63,7 +63,7 @@ class MapViewModel(
         _mapState.update { it.copy(hasAnimatedToUserLocation = true) }
     }
 
-    fun loadChargersNearLocation(center: LatLng, radiusMeters: Double = 5000.0) {
+    fun loadChargersNearLocation(center: LatLng, radiusMeters: Double = 500.0) {
         viewModelScope.launch {
             try {
                 val bounds = createBoundsFromCenter(center, radiusMeters)
