@@ -5,8 +5,7 @@ An Android application for electric vehicle charging station management.
 ## Features
 
 All of the mandatory features specified for the project checkpoint were implemented.
-
-Additionally, the extra component "User Accounts" is already functional due to the simplicity of implementing it using Firebase's already-existing primitives.
+Additionally, the extra components "User Accounts" and "Social Sharing" were also implemented, allowing users to create accounts, log in, and share their charging stations with others.
 
 ## Prerequisites
 
@@ -35,7 +34,7 @@ Additionally, the extra component "User Accounts" is already functional due to t
 2. **User Account**: Create an account and log in, or use the app without signing in (but then you won't have access to the Favorites functionality)
 3. **Browse Stations**: View charging stations on the map, tap markers for details
 4. **Add Stations**: Use the floating action button to add new charging stations
-5. **Search**: Use the search function to filter stations by various criteria
+5. **Search**: Use the search function to filter and sort stations by various criteria
 6. **Change Details**: tap any given Charging Slot to change its speed and connector type information
 
 ## Project Structure
@@ -62,4 +61,3 @@ Key dependencies include:
 - Koin for DI
 - Room for local storage
 - Retrofit for networking
-
